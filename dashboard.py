@@ -43,6 +43,13 @@ h2{font-size:18px;margin:0 0 18px}.muted{color:#a5b5c9}.lead{font-size:14px}
 .controls{display:flex;gap:10px;margin:22px 0;flex-wrap:wrap}
 button{padding:10px 20px;border:1px solid #52677f;background:#1b2b42;color:#fff;border-radius:9px;cursor:pointer}
 button[aria-pressed=true]{background:#e69a24;color:#101825;border-color:#e69a24;font-weight:700}
+input{background:#091727;border:1px solid #52677f;color:#fff;border-radius:9px;padding:11px;font-size:16px;max-width:260px}
+.seed-form{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.balls{display:flex;flex-wrap:wrap;gap:9px;margin:15px 0}
+.ball{display:inline-flex;justify-content:center;align-items:center;width:43px;height:43px;border-radius:50%;background:#f2aa39;color:#161d29;font-weight:800}
+.ball.bonus{background:#90b8db}
+.small-btn{font-size:12px;padding:6px 9px;margin-left:8px}
+#convert-error{color:#ffb5b5}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
 .panel{border:1px solid #2e4059;background:#132239;border-radius:14px;padding:19px;margin:16px 0}
 .metric{font-size:clamp(25px,4vw,36px);font-weight:750;margin:5px 0;font-variant-numeric:tabular-nums}
@@ -65,6 +72,10 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 <div class="panel"><div class="muted">完全一致した開催回</div><div class="metric" id="finished">—</div></div>
 <div class="panel"><div class="muted">現在の探索範囲に対する進捗</div><div class="metric" id="percent">—</div></div></section>
 <section class="panel"><h2>探索範囲の進捗</h2><div class="progress"><div id="bar" style="width:0%"></div></div><p class="muted" id="plan"></p></section>
+<section class="panel"><h2>シード番号から抽選数字を再現</h2>
+<p class="muted lead">上のロト6／ロト7を選択し、0〜4,294,967,295の整数シードを入力。クラウド探索と同じ仮想乱数アルゴリズムで計算します。</p>
+<form id="seed-form" class="seed-form"><label for="seed-input">シード</label><input id="seed-input" inputmode="numeric" type="text" placeholder="例：12345" autocomplete="off" required><button type="submit">数字へ変換</button></form>
+<p id="convert-error" role="status"></p><div id="converted" aria-live="polite"></div></section>
 <section class="panel"><h2>完全一致シードの推移</h2><p class="muted lead">本数字とボーナス数字の両方が完全一致したシードのみ表示。各回の最小シードを使用。実機のシードや予測力ではありません。</p>
 <svg class="chart" id="chart" viewBox="0 0 900 250" role="img" aria-label="候補シード推移グラフ"></svg><p class="muted" id="chartnote"></p></section>
 <section class="panel"><h2>分析結果</h2><div id="analysis" class="muted"></div></section>
@@ -77,6 +88,41 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 const D=JSON.parse(document.querySelector('#payload').textContent);
 let game=6;
 const $=id=>document.getElementById(id), n=x=>Number(x||0).toLocaleString('ja-JP');
+function shuffle(n,seed){
+  let state=seed>>>0;
+  function rnd(){
+    state=(state+0x6D2B79F5)>>>0;
+    let t=state;
+    t=Math.imul(t^(t>>>15),t|1)>>>0;
+    t=(t^((t+Math.imul(t^(t>>>7),t|61))>>>0))>>>0;
+    return ((t^(t>>>14))>>>0)/4294967296;
+  }
+  const a=Array.from({length:n},(_,i)=>i+1);
+  for(let i=n-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
+  return a;
+}
+function renderSeed(value){
+  const input=String(value).trim();
+  if(!/^(0|[1-9][0-9]*)$/.test(input)||Number(input)>4294967295){
+    $('convert-error').textContent='シードには0〜4,294,967,295の整数を入力してください。';
+    $('converted').replaceChildren();return;
+  }
+  $('convert-error').textContent='';
+  $('seed-input').value=input;
+  const size=game===6?43:37, k=game===6?6:7, bonuses=game===6?1:2;
+  const nums=shuffle(size,Number(input)), main=nums.slice(0,k).sort((a,b)=>a-b), bonus=nums.slice(k,k+bonuses).sort((a,b)=>a-b);
+  const root=$('converted');root.replaceChildren();
+  const heading=document.createElement('p');heading.textContent='ロト'+game+'｜シード '+input;root.append(heading);
+  for(const [label,values,type] of [['本数字',main,''],['ボーナス数字',bonus,'bonus']]){
+    const title=document.createElement('div');title.textContent=label;title.className='muted';root.append(title);
+    const balls=document.createElement('div');balls.className='balls';
+    for(const value of values){const ball=document.createElement('span');ball.className='ball '+type;ball.textContent=String(value).padStart(2,'0');balls.append(ball)}
+    root.append(balls);
+  }
+  const info=document.createElement('p');info.className='muted lead';
+  info.textContent='これは指定シードから生成した数字です。過去回との一致、将来の当選、実抽選機の状態を保証するものではありません。';root.append(info);
+}
+$('seed-form').addEventListener('submit',e=>{e.preventDefault();renderSeed($('seed-input').value)});
 function show(){
 document.querySelectorAll('[data-game]').forEach(b=>b.setAttribute('aria-pressed',Number(b.dataset.game)===game?'true':'false'));
 const s=D.summary.find(v=>Number(v.game)===game)||{};
@@ -108,13 +154,19 @@ for(const r of rows.slice(-60).reverse()){
  const tr=document.createElement('tr');const best=r.best[0]||{};
  for(const v of [r.round,best.seed??'—',best.hit??'—',best.bonusHit??'—',r.exact_count]){
  const td=document.createElement('td');td.textContent=String(v);tr.append(td)
- }table.append(tr);
+ }
+ if(best.seed!=null){
+   const btn=document.createElement('button');btn.type='button';btn.className='small-btn';btn.textContent='数字に変換';
+   btn.addEventListener('click',()=>{renderSeed(best.seed);$('seed-form').scrollIntoView({behavior:'smooth',block:'center'})});
+   tr.cells[1].append(btn);
+ }
+ table.append(tr);
 }
 if(!rows.length){const tr=document.createElement('tr');const td=document.createElement('td');td.colSpan=5;td.textContent='完全一致したシードが見つかると表示されます';tr.append(td);table.append(tr)}
 const active=D.active.filter(v=>Number(v.game)===game);
 $('active').textContent=active.length?active.map(v=>'第'+v.round+'回：'+n(v.scanned)+' / '+n(v.seed_limit)).join(' ／ '):'現在部分的に処理済みの開催回はありません';
 }
-document.querySelectorAll('[data-game]').forEach(b=>b.addEventListener('click',()=>{game=Number(b.dataset.game);show()}));
+document.querySelectorAll('[data-game]').forEach(b=>b.addEventListener('click',()=>{game=Number(b.dataset.game);show();if($('seed-input').value)renderSeed($('seed-input').value)}));
 $('stamp').textContent='データ取得時刻（UTC）: '+D.generated_at;
 show();
 </script></body></html>"""
