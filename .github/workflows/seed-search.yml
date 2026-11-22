@@ -7,6 +7,8 @@ on:
       - 'data/loto7.csv'
       - 'import_history.py'
       - 'worker.py'
+      - 'seed_scan.cpp'
+      - 'test_native.py'
       - 'analyze.py'
       - '.github/workflows/seed-search.yml'
   schedule:
@@ -23,17 +25,20 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Validate Python files
+      - name: Compile native seed scanner
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra seed_scan.cpp -o seed_scan
+      - name: Validate Python and cross-check exact matches
         run: |
           python -m compileall -q worker.py import_draws.py import_history.py analyze.py
-          python -m unittest -q test_worker.py
+          python -m unittest -q test_worker.py test_native.py
       - name: Search and checkpoint in D1
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
           RUN_SECONDS: '90'
-          BATCH_SIZE: '500'
+          BATCH_SIZE: '50000'
         run: |
           python import_history.py
           python worker.py
