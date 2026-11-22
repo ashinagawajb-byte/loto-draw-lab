@@ -1,5 +1,5 @@
 """Resumable exact-match-only LOTO seed search for the virtual PRNG."""
-import os, json, time, urllib.request, urllib.error
+import os, json, time, urllib.request, urllib.error, subprocess
 MASK=0xffffffff
 SPACE=2**32
 WINDOW=100000
@@ -53,7 +53,10 @@ def init():
 def run():
     init()
     seconds=min(240,max(10,int(os.getenv('RUN_SECONDS','90'))))
-    batch=min(2000,max(1,int(os.getenv('BATCH_SIZE','500'))))
+    batch=min(200000,max(1,int(os.getenv('BATCH_SIZE','50000'))))
+    scanner=os.path.join(os.path.dirname(__file__),'seed_scan')
+    if not (os.path.isfile(scanner) and os.access(scanner,os.X_OK)):
+        raise RuntimeError('Native seed_scan not compiled: run g++ -O3 -std=c++17 seed_scan.cpp -o seed_scan')
     deadline=time.monotonic()+seconds
     count=0
     while time.monotonic()<deadline-3:
@@ -75,12 +78,14 @@ def run():
         main=set(json.loads(r['main'])); bonus=set(json.loads(r['bonus']))
         exact=int(r['exact_count']); start=int(r['scanned'])
         size=min(batch,int(r['seed_limit'])-start,SPACE-start)
-        found=[]
-        for j in range(size):
-            seed=int(r['seed_start'])+start+j
-            a=shuffle(n,seed)
-            if set(a[:k])==main and set(a[k:k+b])==bonus:
-                found.append(seed)
+        # Native scanner performs exactly the same Fisher-Yates PRNG sequence.
+        # The network token is never passed to the subprocess or its environment.
+        args=[scanner,str(game),str(int(r['seed_start'])+start),str(size),
+              ','.join(map(str,sorted(main))),','.join(map(str,sorted(bonus)))]
+        result=subprocess.run(args,capture_output=True,text=True,check=True,timeout=35,env={'PATH':os.environ.get('PATH','')})
+        found=[int(line) for line in result.stdout.splitlines() if line.strip()]
+        if any(seed<int(r['seed_start'])+start or seed>=int(r['seed_start'])+start+size for seed in found):
+            raise RuntimeError('Native seed result outside requested batch')
         # Insert matches first (idempotently). Progress checkpoint follows.
         for seed in found:
             query("INSERT OR IGNORE INTO exact_matches(game,round,seed) VALUES(?,?,?)",
