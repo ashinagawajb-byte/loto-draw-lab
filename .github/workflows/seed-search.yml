@@ -6,6 +6,8 @@ on:
       - 'data/loto6.csv'
       - 'data/loto7.csv'
       - 'import_history.py'
+      - 'worker.py'
+      - 'analyze.py'
       - '.github/workflows/seed-search.yml'
   schedule:
     - cron: '17 * * * *'
