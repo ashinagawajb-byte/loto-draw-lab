@@ -50,6 +50,10 @@ input{background:#091727;border:1px solid #52677f;color:#fff;border-radius:9px;p
 .ball.bonus{background:#90b8db}
 .small-btn{font-size:12px;padding:6px 9px;margin-left:8px}
 #convert-error{color:#ffb5b5}
+.delta-plus{color:#9ee6b0}.delta-minus{color:#ffbcad}
+.compare-empty{color:#a5b5c9}
+.compare-detail{padding:14px;border:1px solid #38506b;border-radius:10px;margin:12px 0}
+.compare-detail strong{color:#f2c278}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
 .panel{border:1px solid #2e4059;background:#132239;border-radius:14px;padding:19px;margin:16px 0}
 .metric{font-size:clamp(25px,4vw,36px);font-weight:750;margin:5px 0;font-variant-numeric:tabular-nums}
@@ -78,6 +82,11 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 <p id="convert-error" role="status"></p><div id="converted" aria-live="polite"></div></section>
 <section class="panel"><h2>完全一致シードの推移</h2><p class="muted lead">本数字とボーナス数字の両方が完全一致したシードのみ表示。各回の最小シードを使用。実機のシードや予測力ではありません。</p>
 <svg class="chart" id="chart" viewBox="0 0 900 250" role="img" aria-label="候補シード推移グラフ"></svg><p class="muted" id="chartnote"></p></section>
+<section class="panel"><h2>完全一致シードの差分と数字の変化</h2>
+<p class="muted lead">完全一致が発見された開催回を昇順に並べ、前後の<strong>発見済み回</strong>を比較。連続開催かどうかを区別します。各回で発見済みの最小シードを使用します。</p>
+<div class="scroll"><table><thead><tr><th>比較する回</th><th>開催間隔</th><th>シード差分</th><th>本数字の共通数</th><th>新しく登場した本数字</th><th>表示</th></tr></thead><tbody id="delta-table"></tbody></table></div>
+<div id="delta-summary" class="muted lead"></div><div id="delta-detail"></div>
+</section>
 <section class="panel"><h2>分析結果</h2><div id="analysis" class="muted"></div></section>
 <section class="panel"><h2>完全一致した開催回とシード</h2><div class="scroll"><table><thead><tr><th>開催回</th><th>完全一致シード</th><th>本数字一致</th><th>ボーナス一致</th><th>発見数</th></tr></thead><tbody id="candidates"></tbody></table></div></section>
 <section class="panel"><h2>処理中の開催回</h2><div id="active" class="muted"></div></section>
@@ -123,6 +132,76 @@ function renderSeed(value){
   info.textContent='これは指定シードから生成した数字です。過去回との一致、将来の当選、実抽選機の状態を保証するものではありません。';root.append(info);
 }
 $('seed-form').addEventListener('submit',e=>{e.preventDefault();renderSeed($('seed-input').value)});
+function drawNumbers(seed){
+  const k=game===6?6:7,b=game===6?1:2,n=game===6?43:37;
+  const nums=shuffle(n,seed);
+  return {main:nums.slice(0,k).sort((a,b)=>a-b),bonus:nums.slice(k,k+b).sort((a,b)=>a-b)};
+}
+function numberList(label,values,type){
+  const holder=document.createElement('div');
+  const title=document.createElement('p');title.className='muted lead';title.textContent=label;holder.append(title);
+  const balls=document.createElement('div');balls.className='balls';
+  for(const value of values){
+    const ball=document.createElement('span');ball.className='ball '+(type||'');
+    ball.textContent=String(value).padStart(2,'0');balls.append(ball);
+  }
+  holder.append(balls);return holder;
+}
+function renderPair(prev,next){
+ const a=drawNumbers(Number(prev.seed)),b=drawNumbers(Number(next.seed));
+ const root=$('delta-detail');root.replaceChildren();
+ const card=document.createElement('div');card.className='compare-detail';
+ const title=document.createElement('strong');
+ title.textContent='第'+prev.round+'回 → 第'+next.round+'回（'+(Number(next.round)-Number(prev.round))+'開催分）';
+ card.append(title);
+ const p=document.createElement('p');p.className='muted lead';
+ p.textContent='完全一致シード '+n(prev.seed)+' → '+n(next.seed)+' / 差分 '+(Number(next.seed)-Number(prev.seed)).toLocaleString('ja-JP',{signDisplay:'always'});
+ card.append(p);
+ card.append(numberList('前の回：本数字',a.main));
+ card.append(numberList('次の回：本数字',b.main));
+ card.append(numberList('前の回：ボーナス',a.bonus,'bonus'));
+ card.append(numberList('次の回：ボーナス',b.bonus,'bonus'));
+ const same=a.main.filter(x=>b.main.includes(x));
+ const added=b.main.filter(x=>!a.main.includes(x));
+ const removed=a.main.filter(x=>!b.main.includes(x));
+ const info=document.createElement('p');
+ info.textContent='共通した本数字：'+(same.join('・')||'なし')+' ／ 新登場：'+(added.join('・')||'なし')+' ／ 消えた数字：'+(removed.join('・')||'なし');
+ card.append(info);
+ const note=document.createElement('p');note.className='muted lead';
+ note.textContent='開催回に欠番がある比較では、間にある開催回の数字の推移は分かりません。いずれのシードも過去結果に後付けで一致した値です。';
+ card.append(note);root.append(card);
+}
+function renderDeltas(rows){
+ const body=$('delta-table');body.replaceChildren();$('delta-detail').replaceChildren();
+ const pairs=[];
+ for(let i=1;i<rows.length;i++){
+   const prev=rows[i-1],next=rows[i],gap=Number(next.round)-Number(prev.round);
+   if(gap<=0)continue;
+   const a=drawNumbers(Number(prev.seed)),b=drawNumbers(Number(next.seed));
+   pairs.push({prev,next,gap,delta:Number(next.seed)-Number(prev.seed),
+     same:a.main.filter(v=>b.main.includes(v)),
+     added:b.main.filter(v=>!a.main.includes(v))});
+ }
+ const recent=pairs.slice(-50).reverse();
+ for(const p of recent){
+   const tr=document.createElement('tr');
+   const vals=['第'+p.prev.round+'→'+p.next.round+'回',p.gap===1?'連続開催':'間隔 '+p.gap+' 回',
+     p.delta.toLocaleString('ja-JP',{signDisplay:'always'}),p.same.length+'個',p.added.join('・')||'なし'];
+   for(const v of vals){const td=document.createElement('td');td.textContent=v;tr.append(td)}
+   const td=document.createElement('td'),btn=document.createElement('button');
+   btn.className='small-btn';btn.type='button';btn.textContent='詳細';
+   btn.addEventListener('click',()=>renderPair(p.prev,p.next));
+   td.append(btn);tr.append(td);body.append(tr);
+ }
+ if(!recent.length){
+   const tr=document.createElement('tr'),td=document.createElement('td');
+   td.colSpan=6;td.className='compare-empty';
+   td.textContent='比較できる完全一致の開催回が2回以上見つかると表示されます。';
+   tr.append(td);body.append(tr);
+ }
+ const consecutive=pairs.filter(p=>p.gap===1);
+ $('delta-summary').textContent='完全一致が確認された開催回：'+n(rows.length)+'回 ／ 比較可能な組：'+n(pairs.length)+'組 ／ 実際に連続する開催回：'+n(consecutive.length)+'組。共通数・差分は記述統計であり、次回予想の根拠にはなりません。';
+}
 function show(){
 document.querySelectorAll('[data-game]').forEach(b=>b.setAttribute('aria-pressed',Number(b.dataset.game)===game?'true':'false'));
 const s=D.summary.find(v=>Number(v.game)===game)||{};
@@ -134,6 +213,7 @@ $('bar').style.width=Math.min(100,pct)+'%';
 $('plan').textContent=n(scanned)+' / '+n(planned)+' シード（現在設定されている探索範囲。未発見の場合は拡張）';
 const rows=D.completed.filter(v=>Number(v.game)===game).sort((a,b)=>Number(a.round)-Number(b.round));
 const chosen=rows.slice(-150);
+renderDeltas(rows);
 const svg=$('chart');svg.replaceChildren();
 const el=(tag,attrs,text)=>{let x=document.createElementNS('http://www.w3.org/2000/svg',tag);Object.entries(attrs).forEach(([k,v])=>x.setAttribute(k,v));if(text!=null)x.textContent=text;svg.append(x);return x};
 if(chosen.length<2){$('chartnote').textContent='完全一致した開催回が2回以上になるとグラフが表示されます。';}
