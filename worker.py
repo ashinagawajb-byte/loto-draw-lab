@@ -36,6 +36,13 @@ def init():
         game INTEGER NOT NULL, round TEXT NOT NULL,
         seed INTEGER NOT NULL, detected_at TEXT NOT NULL DEFAULT (datetime('now')),
         PRIMARY KEY(game,round,seed))""")
+    query("""CREATE TABLE IF NOT EXISTS search_runs (
+        run_id TEXT PRIMARY KEY,
+        scanned INTEGER NOT NULL,
+        found INTEGER NOT NULL,
+        duration_seconds REAL NOT NULL,
+        completed_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )""")
     # Recover exact matches stored among the previous top-5; these are verified
     # independently by the same deterministic shuffle.
     rows=query("SELECT j.game,j.round,j.best,d.main,d.bonus FROM jobs j JOIN draws d USING (game,round) WHERE j.exact_count>0")
@@ -57,8 +64,10 @@ def run():
     scanner=os.path.join(os.path.dirname(__file__),'seed_scan')
     if not (os.path.isfile(scanner) and os.access(scanner,os.X_OK)):
         raise RuntimeError('Native seed_scan not compiled: run g++ -O3 -std=c++17 seed_scan.cpp -o seed_scan')
-    deadline=time.monotonic()+seconds
+    started=time.monotonic()
+    deadline=started+seconds
     count=0
+    matches=0
     while time.monotonic()<deadline-3:
         # Lowest scanned first ensures all 2860 rounds, both games, receive service.
         rows=query("""SELECT j.*,d.main,d.bonus FROM jobs j
@@ -95,6 +104,13 @@ def run():
             [start+size,len(found),game,r['round'],start])
         if not updated: raise RuntimeError('Concurrent update detected; retry next run')
         count+=size
+        matches+=len(found)
         if found:print(f'LOTO{game} round {r["round"]}: found {len(found)} exact matches')
+    duration=round(time.monotonic()-started,3)
+    run_id=os.getenv('GITHUB_RUN_ID') or ('manual-'+str(int(time.time()))+'-'+str(os.getpid()))
+    query("""INSERT OR IGNORE INTO search_runs(run_id,scanned,found,duration_seconds)
+        VALUES(?,?,?,?)""",[run_id,count,matches,duration])
     print('Scanned',count,'seeds this run (exact-match-only)')
+    print('Run metrics: scanned=',count,'found=',matches,'elapsed_s=',duration,
+          'rate_seeds_per_second=',round(count/max(duration,.001)))
 if __name__=='__main__':run()
