@@ -32,8 +32,14 @@ def import_csv(path, game):
             values = ",".join(["(?,?,?,?)"] * len(batch))
             flat = [value for row in batch for value in row]
             query(f"INSERT OR IGNORE INTO draws(game,round,main,bonus) VALUES {values}", flat)
-    # Uses the existing schema defaults; never resets prior scanned progress.
-    query("INSERT OR IGNORE INTO jobs(game,round) SELECT game,round FROM draws WHERE game=?", [game])
+    # Avoid scanning all historic draws and re-checking jobs on every hourly run.
+    # Both counts must agree with source rows before we skip the job backfill.
+    job_rows = query("SELECT COUNT(*) AS c FROM jobs WHERE game=?", [game])
+    job_count = int(job_rows[0]["c"]) if job_rows else 0
+    if job_count < len(items) or count < len(items):
+        # Uses existing schema defaults and never resets scanned progress.
+        query("INSERT OR IGNORE INTO jobs(game,round) SELECT game,round FROM draws WHERE game=?", [game])
+        print(f"Reconciled missing jobs for LOTO{game}")
     print(f"Imported/verified {len(items)} rows from {path}")
 
 def run():
