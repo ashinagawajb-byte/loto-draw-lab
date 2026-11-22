@@ -28,7 +28,7 @@ python import_draws.py data/loto6.csv 6
 python import_draws.py data/loto7.csv 7
 ```
 
-The CSV must include a round identifier and 6 (LOTO6) or 7 (LOTO7) main numbers; bonus numbers are optional. CSV accepts UTF-8 or CP932. Each row creates a seed-search job with a default range of **0–9999**; importing again preserves existing progress. The `data/` folder is excluded from Git.
+The CSV must include a round identifier and 6 (LOTO6) or 7 (LOTO7) main numbers; bonus numbers are optional. CSV accepts UTF-8 or CP932. Each row creates a seed-search job with a default range of **0–9999**; importing again preserves existing progress. The sanitized public `data/loto6.csv` and `data/loto7.csv` files are versioned in this public repository. Never commit credentials or private datasets.
 
 ### 4. Run and observe
 
@@ -46,4 +46,8 @@ The worker checkpoints progress in small batches and stores five highest-scoring
 
 ## Cost and operational caveats
 
-Stay within GitHub Actions and Cloudflare D1 free-tier quotas. Timed scheduling is best-effort, not guaranteed uninterrupted 24/7. The current package does **not** automatically fetch new official draw results, and it does not expose a browser dashboard/API. Import draws first; an empty database has no jobs.
+Stay within GitHub Actions and Cloudflare D1 free-tier quotas. Timed scheduling is best-effort, not guaranteed uninterrupted 24/7. The current package does **not** automatically fetch new official draw results. A read-only static dashboard is generated hourly from D1 and published using GitHub Pages after Pages is enabled in repository Settings → Pages → Source: GitHub Actions. It does not expose an API or credentials. Public GitHub Pages means search results are publicly visible. Import draws first; an empty database has no jobs.
+
+## Dashboard
+
+The dashboard workflow is `.github/workflows/dashboard.yml`, scheduled at minute 35 UTC each hour, separately from the seed-search worker at minute 17. Turn on GitHub Pages in repository Settings → Pages → Build and deployment → Source: **GitHub Actions**. The site URL will normally be `https://ashinagawajb-byte.github.io/loto-draw-lab/` once a Pages deployment succeeds. The dashboard is a static snapshot and may lag behind D1. It only shows completed rounds when plotting seed trends and is an exploratory research visualization, not a prediction engine.
