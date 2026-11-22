@@ -1,5 +1,15 @@
 """Resumable exact-match-only LOTO seed search for the virtual PRNG."""
 import os, json, time, urllib.request, urllib.error, subprocess
+
+class D1DailyQuotaExceeded(RuntimeError):
+    """Cloudflare D1 account-wide daily row limit; resets at midnight UTC."""
+
+def _quota_error(message):
+    m = str(message).lower()
+    return ("d1" in m and "free tier daily" in m and "limit" in m) or ("d1" in m and "daily" in m and "quota" in m)
+
+USAGE = {"read": 0, "written": 0}
+
 MASK=0xffffffff
 SPACE=2**32
 WINDOW=100000
@@ -26,9 +36,19 @@ def query(sql,params=None):
     try:
         with urllib.request.urlopen(req,timeout=30) as r: result=json.load(r)
     except urllib.error.HTTPError as e:
-        raise RuntimeError(f'D1 HTTP {e.code}: '+e.read(400).decode('utf-8','replace')) from None
+        message=f'D1 HTTP {e.code}: '+e.read(1200).decode('utf-8','replace')
+        if _quota_error(message):
+            raise D1DailyQuotaExceeded(message[:700]) from None
+        raise RuntimeError(message[:700]) from None
     if not result.get('success') or any(not x.get('success',True) for x in result.get('result',[])):
-        raise RuntimeError('D1 query failed: '+str(result.get('errors') or result.get('result'))[:500])
+        message='D1 query failed: '+str(result.get('errors') or result.get('result'))[:1000]
+        if _quota_error(message):
+            raise D1DailyQuotaExceeded(message[:700])
+        raise RuntimeError(message[:700])
+    for entry in result.get('result',[]):
+        meta=entry.get('meta') or {}
+        USAGE['read']+=int(meta.get('rows_read',0) or 0)
+        USAGE['written']+=int(meta.get('rows_written',0) or 0)
     return result['result'][0].get('results',[])
 
 def init():
@@ -72,7 +92,12 @@ def run():
     deadline=started+seconds
     count=0
     matches=0
+    max_reads=int(os.getenv('D1_RUN_READ_BUDGET','60000'))
+    max_writes=int(os.getenv('D1_RUN_WRITE_BUDGET','2000'))
     while time.monotonic()<deadline-3:
+        if USAGE['read']>=max_reads or USAGE['written']>=max_writes:
+            print('Stopped at conservative D1 per-run budget (other account databases share daily quota)')
+            break
         # Lowest scanned first ensures all 2860 rounds, both games, receive service.
         rows=query("""SELECT j.*,d.main,d.bonus FROM jobs j
             JOIN draws d ON d.game=j.game AND d.round=j.round
@@ -115,6 +140,7 @@ def run():
     query("""INSERT OR IGNORE INTO search_runs(run_id,scanned,found,duration_seconds)
         VALUES(?,?,?,?)""",[run_id,count,matches,duration])
     print('Scanned',count,'seeds this run (exact-match-only)')
+    print('D1 usage this process: rows_read=',USAGE['read'],'rows_written=',USAGE['written'])
     print('Run metrics: scanned=',count,'found=',matches,'elapsed_s=',duration,
           'rate_seeds_per_second=',round(count/max(duration,.001)))
 if __name__=='__main__':run()
