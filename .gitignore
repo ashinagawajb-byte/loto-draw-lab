@@ -2,6 +2,6 @@ __pycache__/
 *.pyc
 .env
 .env.*
-data/
 *.sqlite3
 *.db
+# The public lottery draw CSVs in data/ are intentionally versioned.
