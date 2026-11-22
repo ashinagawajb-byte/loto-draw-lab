@@ -43,6 +43,10 @@ def init():
         duration_seconds REAL NOT NULL,
         completed_at TEXT NOT NULL DEFAULT (datetime('now'))
     )""")
+    # Equality on scanned plus ordering on game/round can use this index.
+    # Updating the indexed scanned column costs an extra indexed write, but
+    # avoids a full jobs-table scan for every ~50,000 candidate seeds.
+    query("CREATE INDEX IF NOT EXISTS jobs_next_scan ON jobs(scanned,game,round)")
     # Recover exact matches stored among the previous top-5; these are verified
     # independently by the same deterministic shuffle.
     rows=query("SELECT j.game,j.round,j.best,d.main,d.bonus FROM jobs j JOIN draws d USING (game,round) WHERE j.exact_count>0")
@@ -73,7 +77,7 @@ def run():
         rows=query("""SELECT j.*,d.main,d.bonus FROM jobs j
             JOIN draws d ON d.game=j.game AND d.round=j.round
             WHERE j.scanned<j.seed_limit AND j.scanned<? 
-            ORDER BY j.scanned,j.game,CAST(j.round AS INTEGER) LIMIT 1""",[SPACE])
+            ORDER BY j.scanned,j.game,j.round LIMIT 1""",[SPACE])
         if not rows:
             expanded=query("""UPDATE jobs SET seed_limit=MIN(?,seed_limit+?)
                 WHERE scanned>=seed_limit AND seed_limit<? RETURNING round""",
