@@ -3,7 +3,7 @@ import csv, json, os, pathlib
 from worker import query
 
 ROOT = pathlib.Path(__file__).resolve().parent
-BATCH = 40
+BATCH = 10
 
 def import_csv(path, game):
     k, maxnum, b = (6, 43, 1) if game == 6 else (7, 37, 2)
