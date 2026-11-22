@@ -23,6 +23,9 @@ def get_data():
       ORDER BY updated_at DESC LIMIT 10
     """)
     studies = query("SELECT game, summary, updated_at FROM seed_analysis")
+    # Metrics are updated only after a successful, checkpointed worker run.
+    runs = query("""SELECT run_id,scanned,found,duration_seconds,completed_at
+        FROM search_runs ORDER BY completed_at DESC LIMIT 12""")
     for row in completed:
         row["best"] = [{"seed":int(row["seed"]),"hit":int(row["game"]),"bonusHit":1 if int(row["game"])==6 else 2}]
     for row in active:
@@ -30,7 +33,7 @@ def get_data():
     for row in studies:
         row["summary"] = json.loads(row["summary"])
     return {"summary": summary, "completed": completed, "active": active,
-            "studies": studies, "note": "シード値は仮想PRNGの値であり、実機の状態ではありません。過去結果に合わせた値から予測力は導けません。"}
+            "studies": studies, "runs": runs, "note": "シード値は仮想PRNGの値であり、実機の状態ではありません。過去結果に合わせた値から予測力は導けません。"}
 
 HTML = r"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -75,6 +78,14 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 <div class="panel"><div class="muted">探索済みシード</div><div class="metric" id="scanned">—</div></div>
 <div class="panel"><div class="muted">完全一致した開催回</div><div class="metric" id="finished">—</div></div>
 <div class="panel"><div class="muted">現在の探索範囲に対する進捗</div><div class="metric" id="percent">—</div></div></section>
+<section class="panel"><h2>クラウド探索の稼働状況</h2>
+<div class="grid">
+<div><div class="muted lead">直近の探索件数（両ゲーム合計）</div><div class="metric" id="last-scanned">—</div></div>
+<div><div class="muted lead">直近の処理速度</div><div class="metric" id="last-rate">—</div></div>
+<div><div class="muted lead">最近の平均探索数（最大12回）</div><div class="metric" id="avg-scanned">—</div></div>
+</div><p id="last-run" class="muted lead"></p>
+<p id="last-run-status" class="muted lead"></p>
+</section>
 <section class="panel"><h2>探索範囲の進捗</h2><div class="progress"><div id="bar" style="width:0%"></div></div><p class="muted" id="plan"></p></section>
 <section class="panel"><h2>シード番号から抽選数字を再現</h2>
 <p class="muted lead">上のロト6／ロト7を選択し、0〜4,294,967,295の整数シードを入力。クラウド探索と同じ仮想乱数アルゴリズムで計算します。</p>
@@ -247,6 +258,14 @@ const active=D.active.filter(v=>Number(v.game)===game);
 $('active').textContent=active.length?active.map(v=>'第'+v.round+'回：'+n(v.scanned)+' / '+n(v.seed_limit)).join(' ／ '):'現在部分的に処理済みの開催回はありません';
 }
 document.querySelectorAll('[data-game]').forEach(b=>b.addEventListener('click',()=>{game=Number(b.dataset.game);show();if($('seed-input').value)renderSeed($('seed-input').value)}));
+const runs=D.runs||[];
+const latest=runs[0];
+$('last-scanned').textContent=latest?n(latest.scanned):'データなし';
+$('last-rate').textContent=latest&&Number(latest.duration_seconds)>0?n(Math.round(Number(latest.scanned)/Number(latest.duration_seconds)))+' /秒':'—';
+$('avg-scanned').textContent=runs.length?n(Math.round(runs.reduce((a,r)=>a+Number(r.scanned),0)/runs.length)):'—';
+$('last-run').textContent=latest?'最終実行記録（UTC）：'+latest.completed_at+'｜完全一致の新規発見：'+n(latest.found)+'件':'探索実行記録の収集開始前です。';
+const age=latest?(Date.parse(D.generated_at)-Date.parse(latest.completed_at+'Z'))/3600000:null;
+$('last-run-status').textContent=age!=null&&age>3?'注意：最終記録から3時間以上経過しています。GitHub Actionsを確認してください。':'この値は公開画面生成時点の記録です。リアルタイムの監視ではありません。';
 $('stamp').textContent='データ取得時刻（UTC）: '+D.generated_at;
 show();
 </script></body></html>"""
