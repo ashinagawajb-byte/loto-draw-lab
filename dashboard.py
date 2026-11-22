@@ -24,8 +24,14 @@ def get_data():
     """)
     studies = query("SELECT game, summary, updated_at FROM seed_analysis")
     # Metrics are updated only after a successful, checkpointed worker run.
-    runs = query("""SELECT run_id,scanned,found,duration_seconds,completed_at
-        FROM search_runs ORDER BY completed_at DESC LIMIT 12""")
+    try:
+        runs = query("""SELECT run_id,scanned,found,duration_seconds,completed_at
+            FROM search_runs ORDER BY completed_at DESC LIMIT 12""")
+    except RuntimeError as exc:
+        # Allow the dashboard to publish before the first worker initializes telemetry.
+        if 'no such table: search_runs' not in str(exc).lower():
+            raise
+        runs = []
     for row in completed:
         row["best"] = [{"seed":int(row["seed"]),"hit":int(row["game"]),"bonusHit":1 if int(row["game"])==6 else 2}]
     for row in active:
