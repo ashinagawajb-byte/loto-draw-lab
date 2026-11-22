@@ -7,15 +7,15 @@ def get_data():
     summary = query("""
       SELECT game, COUNT(*) rounds, COALESCE(SUM(scanned),0) scanned,
         COALESCE(SUM(seed_limit),0) planned,
-        SUM(CASE WHEN scanned>=seed_limit THEN 1 ELSE 0 END) completed,
+        SUM(CASE WHEN exact_count>0 THEN 1 ELSE 0 END) completed,
         COALESCE(SUM(exact_count),0) exact
       FROM jobs GROUP BY game ORDER BY game
     """)
-    # Seed trends use only COMPLETED, independent draw runs. No fabricated future values.
+    # Only FULL matches are eligible for display, even when a seed window is incomplete.
     completed = query("""
-      SELECT game, round, scanned, seed_limit, exact_count, best
-      FROM jobs WHERE scanned >= seed_limit AND best != '[]'
-      ORDER BY game, CAST(round AS INTEGER) DESC LIMIT 800
+      SELECT j.game,j.round,j.scanned,j.seed_limit,j.exact_count,MIN(m.seed) AS seed
+      FROM exact_matches m JOIN jobs j ON j.game=m.game AND j.round=m.round
+      GROUP BY j.game,j.round ORDER BY j.game,CAST(j.round AS INTEGER) DESC LIMIT 800
     """)
     active = query("""
       SELECT game, round, scanned, seed_limit, best
@@ -23,8 +23,10 @@ def get_data():
       ORDER BY updated_at DESC LIMIT 10
     """)
     studies = query("SELECT game, summary, updated_at FROM seed_analysis")
-    for row in completed + active:
-        row["best"] = json.loads(row["best"])
+    for row in completed:
+        row["best"] = [{"seed":int(row["seed"]),"hit":int(row["game"]),"bonusHit":1 if int(row["game"])==6 else 2}]
+    for row in active:
+        row["best"] = []
     for row in studies:
         row["summary"] = json.loads(row["summary"])
     return {"summary": summary, "completed": completed, "active": active,
@@ -60,13 +62,13 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 <div class="controls"><button type="button" data-game="6" aria-pressed="true">ロト6</button><button type="button" data-game="7" aria-pressed="false">ロト7</button></div>
 <section class="grid" aria-label="進捗"><div class="panel"><div class="muted">登録開催回</div><div class="metric" id="rounds">—</div></div>
 <div class="panel"><div class="muted">探索済みシード</div><div class="metric" id="scanned">—</div></div>
-<div class="panel"><div class="muted">探索を完了した開催回</div><div class="metric" id="finished">—</div></div>
-<div class="panel"><div class="muted">総合進捗</div><div class="metric" id="percent">—</div></div></section>
-<section class="panel"><h2>全探索の進捗</h2><div class="progress"><div id="bar" style="width:0%"></div></div><p class="muted" id="plan"></p></section>
-<section class="panel"><h2>完了済み開催回の候補シード推移</h2><p class="muted lead">各回の最上位候補を表示。探索済みの開催回のみで作図。シードの数値推移は予測力を意味しない。</p>
+<div class="panel"><div class="muted">完全一致した開催回</div><div class="metric" id="finished">—</div></div>
+<div class="panel"><div class="muted">現在の探索範囲に対する進捗</div><div class="metric" id="percent">—</div></div></section>
+<section class="panel"><h2>探索範囲の進捗</h2><div class="progress"><div id="bar" style="width:0%"></div></div><p class="muted" id="plan"></p></section>
+<section class="panel"><h2>完全一致シードの推移</h2><p class="muted lead">本数字とボーナス数字の両方が完全一致したシードのみ表示。各回の最小シードを使用。実機のシードや予測力ではありません。</p>
 <svg class="chart" id="chart" viewBox="0 0 900 250" role="img" aria-label="候補シード推移グラフ"></svg><p class="muted" id="chartnote"></p></section>
 <section class="panel"><h2>分析結果</h2><div id="analysis" class="muted"></div></section>
-<section class="panel"><h2>完了済み開催回・候補ランキング</h2><div class="scroll"><table><thead><tr><th>開催回</th><th>最上位シード</th><th>本数字一致</th><th>ボーナス一致</th><th>完全一致シード数</th></tr></thead><tbody id="candidates"></tbody></table></div></section>
+<section class="panel"><h2>完全一致した開催回とシード</h2><div class="scroll"><table><thead><tr><th>開催回</th><th>完全一致シード</th><th>本数字一致</th><th>ボーナス一致</th><th>発見数</th></tr></thead><tbody id="candidates"></tbody></table></div></section>
 <section class="panel"><h2>処理中の開催回</h2><div id="active" class="muted"></div></section>
 <footer>このページは自動実行時点の静的な集計結果です。リアルタイム通信は行いません。APIトークン・認証情報は含まれていません。
 各回のシード探索は過去結果に合わせた後付けの探索であり、実際の抽選機のシードを復元したものではありません。</footer>
@@ -83,12 +85,12 @@ const pct=planned?100*scanned/planned:0;
 $('rounds').textContent=n(s.rounds);$('scanned').textContent=n(scanned);
 $('finished').textContent=n(s.completed);$('percent').textContent=pct.toFixed(2)+'%';
 $('bar').style.width=Math.min(100,pct)+'%';
-$('plan').textContent=n(scanned)+' / '+n(planned)+' シード（全登録開催回の探索予定数）';
+$('plan').textContent=n(scanned)+' / '+n(planned)+' シード（現在設定されている探索範囲。未発見の場合は拡張）';
 const rows=D.completed.filter(v=>Number(v.game)===game).sort((a,b)=>Number(a.round)-Number(b.round));
 const chosen=rows.slice(-150);
 const svg=$('chart');svg.replaceChildren();
 const el=(tag,attrs,text)=>{let x=document.createElementNS('http://www.w3.org/2000/svg',tag);Object.entries(attrs).forEach(([k,v])=>x.setAttribute(k,v));if(text!=null)x.textContent=text;svg.append(x);return x};
-if(chosen.length<2){$('chartnote').textContent='グラフ表示には完了済み開催回が2回以上必要です。';}
+if(chosen.length<2){$('chartnote').textContent='完全一致した開催回が2回以上になるとグラフが表示されます。';}
 else{
 const points=chosen.map(r=>Number(r.best[0].seed));
 const lo=Math.min(...points),hi=Math.max(...points),range=Math.max(1,hi-lo);
@@ -98,9 +100,9 @@ el('polyline',{points:xy.map(p=>p.join(',')).join(' '),fill:'none',stroke:'#ffbb
 $('chartnote').textContent='表示対象: '+chosen.length+'開催回（第'+chosen[0].round+'回〜第'+chosen[chosen.length-1].round+'回）';
 }
 const study=D.studies.find(v=>Number(v.game)===game),a=study&&study.summary;
-$('analysis').textContent=a&&a.completed_rounds>=5
-? '完了開催回 '+n(a.completed_rounds)+'件｜1期ラグ相関 '+(a.lag1_r==null?'算出不可':Number(a.lag1_r).toFixed(4))+'｜探索的置換検定 p≈'+Number(a.permutation_p_exploratory).toFixed(3)+'。候補は過去結果で選択されており、将来予測の根拠にはなりません。'
-: '分析対象の完了開催回が5回に達すると、自己相関などを表示します。';
+$('analysis').textContent=a&&a.matched_rounds>=5
+? '完全一致した開催回 '+n(a.matched_rounds)+'件｜1期ラグ相関 '+(a.lag1_r==null?'算出不可':Number(a.lag1_r).toFixed(4))+'｜探索的置換検定 p≈'+Number(a.permutation_p_exploratory).toFixed(3)+'。候補は過去結果で選択されており、将来予測の根拠にはなりません。'
+: '完全一致した開催回が5回以上になると、自己相関などを表示します。';
 const table=$('candidates');table.replaceChildren();
 for(const r of rows.slice(-60).reverse()){
  const tr=document.createElement('tr');const best=r.best[0]||{};
@@ -108,7 +110,7 @@ for(const r of rows.slice(-60).reverse()){
  const td=document.createElement('td');td.textContent=String(v);tr.append(td)
  }table.append(tr);
 }
-if(!rows.length){const tr=document.createElement('tr');const td=document.createElement('td');td.colSpan=5;td.textContent='探索完了後に表示されます';tr.append(td);table.append(tr)}
+if(!rows.length){const tr=document.createElement('tr');const td=document.createElement('td');td.colSpan=5;td.textContent='完全一致したシードが見つかると表示されます';tr.append(td);table.append(tr)}
 const active=D.active.filter(v=>Number(v.game)===game);
 $('active').textContent=active.length?active.map(v=>'第'+v.round+'回：'+n(v.scanned)+' / '+n(v.seed_limit)).join(' ／ '):'現在部分的に処理済みの開催回はありません';
 }
