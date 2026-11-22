@@ -22,11 +22,16 @@ def import_csv(path, game):
                 raise ValueError(f"{path.name}: invalid row {len(items) + 2}: {exc}") from exc
     if len({row[1] for row in items}) != len(items):
         raise ValueError(f"{path.name}: duplicated round numbers")
-    for start in range(0, len(items), BATCH):
-        batch = items[start : start + BATCH]
-        values = ",".join(["(?,?,?,?)"] * len(batch))
-        flat = [value for row in batch for value in row]
-        query(f"INSERT OR IGNORE INTO draws(game,round,main,bonus) VALUES {values}", flat)
+    existing = query("SELECT COUNT(*) AS c FROM draws WHERE game=?", [game])
+    count = int(existing[0]["c"]) if existing else 0
+    if count >= len(items):
+        print(f"History already present for LOTO{game}: {count} rows; skipping duplicate upload")
+    else:
+        for start in range(0, len(items), BATCH):
+            batch = items[start : start + BATCH]
+            values = ",".join(["(?,?,?,?)"] * len(batch))
+            flat = [value for row in batch for value in row]
+            query(f"INSERT OR IGNORE INTO draws(game,round,main,bonus) VALUES {values}", flat)
     # Uses the existing schema defaults; never resets prior scanned progress.
     query("INSERT OR IGNORE INTO jobs(game,round) SELECT game,round FROM draws WHERE game=?", [game])
     print(f"Imported/verified {len(items)} rows from {path}")
