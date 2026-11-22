@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate Python files
         run: |
-          python -m compileall -q worker.py import_draws.py analyze.py
+          python -m compileall -q worker.py import_draws.py import_history.py analyze.py
           python -m unittest -q test_worker.py
       - name: Search and checkpoint in D1
         env:
@@ -26,5 +26,6 @@ jobs:
           RUN_SECONDS: '90'
           BATCH_SIZE: '500'
         run: |
+          python import_history.py
           python worker.py
           python analyze.py
