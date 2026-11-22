@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - 'dashboard.py'
+      - 'simulator/**'
       - '.github/workflows/dashboard.yml'
 permissions:
   contents: read
@@ -32,6 +33,12 @@ jobs:
         run: |
           python -m compileall -q dashboard.py
           python dashboard.py
+          mkdir -p site/simulator
+          cp simulator/index.html simulator/manifest.webmanifest simulator/sw.js site/simulator/
+          python simulator/make_icons.py site/simulator
+          test -s site/simulator/icon-192.png
+          test -s site/simulator/icon-512.png
+          test -s site/simulator/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
