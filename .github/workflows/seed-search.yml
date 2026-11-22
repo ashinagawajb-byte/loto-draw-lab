@@ -1,5 +1,12 @@
 name: LOTO seed search
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'data/loto6.csv'
+      - 'data/loto7.csv'
+      - 'import_history.py'
+      - '.github/workflows/seed-search.yml'
   schedule:
     - cron: '17 * * * *'
   workflow_dispatch:
