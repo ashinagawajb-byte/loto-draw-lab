@@ -57,3 +57,18 @@ The dashboard workflow is `.github/workflows/dashboard.yml`, scheduled at minute
 The GitHub Actions worker now uses the index `jobs_next_scan(scanned,game,round)` to avoid repeatedly scanning all historic jobs for each 50,000-seed checkpoint. Completed CSV imports are no longer re-inserted hourly. `worker.query` accumulates the D1 API's `meta.rows_read` and `meta.rows_written` counters, and each run conservatively stops after about 60,000 read rows or 2,000 written rows (both configurable through `D1_RUN_READ_BUDGET` and `D1_RUN_WRITE_BUDGET`). Checks occur between committed chunks, so an individual query can slightly exceed a per-run soft cap. The current default frequency is once per UTC hour, NOT continuous; other D1 databases in the same account consume the same daily free allowance.
 
 The quota-aware `run_search.py` logs a GitHub Actions warning only for Cloudflare's recognized daily D1 free-tier row limit response; it leaves previously committed progress untouched. A later scheduled run tries again. Other errors are **not** suppressed. Cloudflare resets daily D1 limits at 00:00 UTC (09:00 Japan time); the worker cannot directly know the remaining account-wide budget from query-local metadata alone, so these guards do **not** guarantee the account never hits its limit. To check actual total usage, consult the Cloudflare D1 dashboard. To pause all search while other applications need quota, disable the GitHub Actions scheduled workflow.
+
+## Global one-pass seed search (v2)
+
+The scheduled workflow now uses `global_search.py` + the native `global_scan.cpp` executable. Instead of repeating an identical seed's shuffle independently for each historical round, the native scanner computes one LOTO6 and one LOTO7 virtual draw per seed and checks the two results against all known rounds using in-memory hash maps.
+
+The one-pass cursor is tracked in `global_progress` (one 32-bit seed search space, `0..2^32-1`). Full main+bonus matches are stored in `global_exact_matches`. Legacy per-round `jobs` cursors and `exact_matches` are **retained without modification**; the dashboard displays the new unique-seed cursor separately from the legacy per-round work total, and de-duplicates matching seeds when displaying found rounds. The shared new engine only validates a deterministic *virtual PRNG* and does not reveal the lottery machine's state or imply predictive value.
+
+If a new historical CSV changes the target snapshot, the global cursor restarts from seed 0 for correctness (new rounds must also be tested against earlier seeds), but previous matches are never cleared. Re-scans are idempotent. Each committed checkpoint follows successful verified match inserts. If the D1 quota interrupts a chunk, the cursor stays unchanged and the chunk is safely replayed. Each native hit is independently verified against the Python reference before committing. `GLOBAL_BATCH_SIZE=1000000` seeds per checkpoint by default. D1 read/write soft budgets still apply; the Cloudflare daily quota is account-wide.
+
+To validate locally:
+```bash
+g++ -O3 -std=c++17 -Wall -Wextra seed_scan.cpp -o seed_scan
+g++ -O3 -std=c++17 -Wall -Wextra global_scan.cpp -o global_scan
+python -m unittest -q test_worker.py test_native.py test_global.py
+```
