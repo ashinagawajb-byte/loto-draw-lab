@@ -2,6 +2,17 @@
 <style>:root{font-family:system-ui,"Noto Sans JP",sans-serif;color-scheme:dark;background:#0a1220;color:#eef3fa}*{box-sizing:border-box}body{margin:0}header,main{max-width:1050px;padding:18px;margin:auto}h1{font-size:24px}h2{font-size:18px}.muted,small{color:#afc1d5}p{line-height:1.7}.panel{background:#15243a;padding:17px;border-radius:14px;border:1px solid #344b68;margin:12px 0}label{display:block;font-size:13px;color:#c8d9eb}input,select,textarea{font:inherit;color:#f2f5fb;background:#0b182c;border:1px solid #4b6380;border-radius:7px;padding:9px;width:100%;margin:4px 0 11px}button,.btn{background:#ffbd6c;color:#132032;border:0;border-radius:8px;padding:10px 13px;font:inherit;font-weight:700;cursor:pointer;display:inline-block;text-decoration:none}button.secondary{background:#304762;color:#edf5ff}a{color:#96c9ff}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.line{display:flex;gap:9px;flex-wrap:wrap;align-items:center}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.scroll{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;border-bottom:1px solid #38516a;text-align:left}pre{white-space:pre-wrap;overflow-wrap:anywhere}.note{border-left:3px solid #e6ad5d;padding:10px;background:#282436}@media(max-width:720px){.grid,.row{grid-template-columns:1fr}header,main{padding:12px}}</style></head><body>
 <header><h1>◉ LOTO DRAW LAB <span class="muted">/ 抽せん後レビュー</span></h1><p>公式バックナンバーから映像を確認し、抽出順序・攪拌状態・5口の照合を回号ごとに記録する研究ノート。</p></header>
 <main>
+<section id="simulationReview" class="panel" hidden><h2>ChatGPTでシミュレーションを回顧</h2>
+<p id="simulationSummary"></p>
+<label for="simulationPrompt">ChatGPTに渡す回顧依頼</label>
+<textarea id="simulationPrompt" readonly rows="8"></textarea>
+<div class="line"><button id="copySimulation">回顧依頼をコピー</button><a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">ChatGPTを開く</a></div>
+<p id="copyStatus" role="status" class="muted">依頼をコピーしてChatGPTに貼り付けると、この試行の回顧を作成できます。</p>
+<label for="simulationNotes">ChatGPTが作成した回顧</label>
+<textarea id="simulationNotes" rows="5"></textarea>
+<button id="saveSimulation">この試行の回顧を保存</button>
+<p id="simulationSaveStatus" role="status" class="muted"></p>
+</section>
 <section class="panel note">**映像の自動認識ではありません。** バックナンバーにあるのは直近8回のダイジェスト映像です。映像のURLは公式ページを参照し、抽出時刻・動作・結果は人が映像や公式当せん結果で確認したものだけを記録します。動画掲載終了後もレビュー記録は残せます。</section>
 <section class="panel"><h2>公式バックナンバー</h2><p><a id="archive" href="https://www.takarakuji-dream.jp/takarakuji/backnumber" target="_blank" rel="noopener noreferrer">公式バックナンバーを開く</a> · <a href="https://www.takarakuji-dream.jp/takarakuji/" target="_blank" rel="noopener noreferrer">公式ライブ中継</a></p>
 <div class="line"><label style="min-width:170px">ゲーム<select id="game"><option value="loto6">ロト6</option><option value="loto7">ロト7</option></select></label><label style="min-width:150px">回号<input id="draw" type="number" min="1" value="2157"></label><label style="min-width:170px">抽せん日<input id="date" type="date" value="2026-11-23"></label></div>
@@ -21,6 +32,13 @@
 <label>参照元URL / 時刻 / 留意点<textarea id="evidence" rows="3" placeholder="公式アーカイブ、結果ページ、確認時刻など"></textarea></label>
 <div class="line"><button id="save">この回号のレビューを保存</button><button id="download" class="secondary">全レビューをJSONで出力</button><label>レビューJSONを取り込む<input type="file" id="restore" accept=".json,application/json"></label></div>
 <p id="message" class="muted">ブラウザ内の保存領域に記録します。長期保管にはJSONの書き出しも利用してください。</p></section>
+<section class="panel"><h2>ChatGPTの検証回顧</h2>
+<p class="muted">ロト6の検証用シード2157で、交互回転と連続回転を各1試行。Rapierの固定ステップ、パレット90 rpm、球14.09 g、初期攪拌8秒。</p>
+<div class="scroll"><table><thead><tr><th>方式</th><th>抽出順の回転</th><th>本数字（抽出順）</th><th>ボーナス</th></tr></thead>
+<tbody><tr><td>交互回転</td><td>時計回りと反時計回りが交互（全7球）</td><td>17・41・38・12・25・20</td><td>30</td></tr>
+<tr><td>連続回転</td><td>全7球が時計回り</td><td>17・39・11・12・13・35</td><td>7</td></tr></tbody></table></div>
+<p>この試行では、両方式とも指定した向きで7球を重複なく抽出しました。回転方式を切り替えると同じシードでも出力が変わりました。次の比較では複数の固定シードを使い、反転直後の残球の周回速度と次球が排出されるまでの挙動を確認します。これは仮想抽選の記録です。実機の回転方向と当せん予測への効果は未確認です。</p>
+</section>
 <section class="panel"><h2>保存した回顧</h2><div id="saved"></div></section>
 <section class="panel"><h2>研究上の取り扱い</h2><p>動画の公開期限と抽出映像の取得可否は別です。公式ページの「視聴する」リンクがなくなっても、観察記録を上書き・削除しません。実測値とモデル仮定値は混同せず、モデルCで未測定のRPMを補完しません。新しい回号については、抽せんが終了して公式データを確認するまで結果欄を空欄に保ってください。</p></section>
 </main><script>
@@ -42,6 +60,48 @@ $("download").onclick=()=>download("draw_retro_reviews.json",{schema:1,source:"u
 $("catalogFile").onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());if(!Array.isArray(j.draws))throw Error("目録形式ではありません");catalog=j.draws.filter(validRow);$("catalogStatus").textContent="公式目録を読み込みました："+catalog.length+"件。取得日時："+(j.retrieved_at||"不明");render();}catch(err){$("catalogStatus").textContent="読み込み失敗："+err.message;}};
 $("restore").onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());if(j.schema!==1||!j.reviews||typeof j.reviews!=="object")throw Error("レビュー形式ではありません");const old=safeRead();let count=0;for(const [k,v] of Object.entries(j.reviews)){if(!/^(loto6|loto7)-\d+$/.test(k)||!v||typeof v!=="object")continue;if(old[k])continue;old[k]=v;count++;}safeWrite(old);$("message").textContent=count+"件の未登録レビューを取り込みました（既存記録を保護）。";openCurrent();}catch(err){$("message").textContent="取り込み失敗："+err.message;}};
 $("game").onchange=render;
+function openSimulationReview(){
+ const time=new URLSearchParams(location.search).get("simulation");
+ if(!time)return;
+ $("simulationReview").hidden=false;
+ let run;
+ try{run=JSON.parse(localStorage.getItem("loto-draw-lab-v2")||"{}").history?.find(item=>item.time===time);}catch{}
+ if(!run){
+  $("simulationSummary").textContent="このブラウザ内に指定された試行が見つかりません。";
+  for(const id of ["copySimulation","saveSimulation"])$(id).disabled=true;
+  return;
+ }
+ const p=run.parameters;
+ const directions=run.directions?.length?run.directions.map(n=>n>0?"時計回り":"反時計回り").join(" → "):"記録なし";
+ const summary=[
+  run.game+" / "+(run.mode==="physics"?"物理近似":"公平乱数"),
+  "本数字: "+run.main.join(" ")+" / ボーナス: "+run.bonus.join(" "),
+  "抽出順の回転: "+directions,
+ ];
+ if(p){
+  summary.push("回転方式: "+(p.rotationMode==="continuous"?"連続回転":"交互回転")+
+   " / パレット: "+p.palletRpm+" rpm / 攪拌: "+p.mixTime+"秒 / 球: "+p.mass+"g / 反発係数: "+p.bounce);
+ }
+ $("simulationSummary").textContent=summary.join(" ｜ ");
+ $("simulationPrompt").value=[
+  "LOTO DRAW LABの次の仮想抽選について、日本語で短いレビューと次に比べる条件を1項目書いてください。",
+  "抽出順の回転記録が選択した方式と整合するか確認してください。予測力、実機の駆動、統計的な偏りはこの1試行から断定せず、未計測の値は推測で補わないでください。",
+  ...summary
+ ].join("\n");
+ const noteKey="loto-draw-lab-simulation-review:"+time;
+ try{$("simulationNotes").value=localStorage.getItem(noteKey)||"";}catch{}
+ $("copySimulation").onclick=async()=>{
+  $("simulationPrompt").select();
+  try{await navigator.clipboard.writeText($("simulationPrompt").value);$("copyStatus").textContent="コピーしました。ChatGPTに貼り付けてください。";}
+  catch{$("copyStatus").textContent="選択された文をコピーしてChatGPTに貼り付けてください。";}
+ };
+ $("saveSimulation").onclick=()=>{
+  try{localStorage.setItem(noteKey,$("simulationNotes").value);$("simulationSaveStatus").textContent="この試行の回顧を保存しました。";}
+  catch{$("simulationSaveStatus").textContent="保存できませんでした。";}
+ };
+ $("simulationReview").scrollIntoView();
+}
 openCurrent();
+openSimulationReview();
 if(catalog.length)$("catalogStatus").textContent="公式バックナンバー目録："+catalog.length+"件。動画を開いて確認してね。";
 </script></body></html>

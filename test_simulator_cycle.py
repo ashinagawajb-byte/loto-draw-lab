@@ -10,14 +10,32 @@ PAGE=ROOT/"simulator"/"index.html"
 class DrawCycleProductionTests(unittest.TestCase):
     def test_provisional_drive_selection_and_legacy_preserved(self):
         s=PAGE.read_text(encoding="utf-8")
-        self.assertIn('<option value="continuous" selected>',s)
-        self.assertIn('<option value="legacy">',s)
-        self.assertIn("if($('rotationMode').value==='legacy')spinDirection*=-1;",s)
-        self.assertNotIn("\n  spinDirection*=-1;\n",s)
-        self.assertIn("rotationMode:$('rotationMode').value",s)
-        self.assertIn("'rotationMode','draw'",s)
-        self.assertIn("駆動軸の停止・回転方向は未測定",s)
-        self.assertIn('href="./review.html"',s)
+        self.assertIn('<option value="legacy" selected>', s)
+        self.assertIn('<option value="continuous">', s)
+        self.assertIn("spinDirection=rotationDirection(rotationMode,i+1);", s)
+        self.assertIn("palletVisual.rotation.y=-palletAngle", s)
+        self.assertIn("directions.push(spinDirection)", s)
+        self.assertIn("rotationMode:$('rotationMode').value", s)
+        self.assertIn("駆動軸の停止・回転方向は未測定", s)
+        self.assertIn('href="./review.html"', s)
+
+    def test_rotation_sequence_and_analyzer_csv(self):
+        s = PAGE.read_text(encoding="utf-8")
+        parser = s[s.index("function parseAnalyzerCSV("):s.index("function renderAnalyzer(")]
+        rotation = next(line for line in s.splitlines() if line.startswith("function rotationDirection("))
+        tests = r"""
+const assert=require('node:assert/strict');
+assert.deepEqual(Array.from({length:7},(_,i)=>rotationDirection('legacy',i)),[1,-1,1,-1,1,-1,1]);
+assert.ok(Array.from({length:9},(_,i)=>rotationDirection('continuous',i)).every(x=>x===1));
+const csv='回,口,数字1,数字2,数字3,数字4,数字5,数字6'+
+ Array.from({length:5},(_,i)=>'\n'+[101,i+1,i+1,8,9,10,11,12].join(',')).join('');
+assert.equal(parseAnalyzerCSV(csv).round,101);
+assert.deepEqual(parseAnalyzerCSV(csv).tickets[4],[5,8,9,10,11,12]);
+assert.throws(()=>parseAnalyzerCSV(csv.replace('101,5','102,5')));
+assert.throws(()=>parseAnalyzerCSV(csv.replace(',10,11,12',',10,10,12')));
+"""
+        subprocess.run(["node"], input=parser+rotation+tests, text=True, check=True)
+
     def test_review_and_simulator_javascript_syntax(self):
         s=PAGE.read_text(encoding="utf-8")
         # Main app's JS is an ES module; use input-type=module for node syntax.
