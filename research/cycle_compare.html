@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LOTO DRAW LAB | 第2157回 攪拌比較ラボ</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,"Noto Sans JP",sans-serif;background:#090f1b;color:#edf3fb}*{box-sizing:border-box}body{margin:0}header,main,footer{max-width:1190px;margin:auto;padding:18px}h1{font-size:clamp(21px,3.5vw,30px);margin:0 0 7px}h2{font-size:17px;margin:0 0 12px}p{line-height:1.65}.muted,small{color:#abbccf}small{font-size:12px}.card{border:1px solid #2c445e;border-radius:15px;background:#132238;padding:17px;min-width:0}.cols{display:grid;grid-template-columns:1.25fr 1fr;gap:14px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}button,select,input{font:inherit}button{color:#101924;background:#ffc365;border:0;border-radius:8px;padding:10px 15px;font-weight:700;cursor:pointer}button.secondary{background:#2c455d;color:white}input,select{accent-color:#eeb05d;background:#101d30;color:white;border:1px solid #47607c;border-radius:7px;padding:6px}input[type=range]{width:100%}label{display:block;font-size:12px;color:#d5e2f0}label b{float:right;color:#ffcf80}canvas{width:100%;background:#0a1527;border-radius:12px;display:block}#orbit{aspect-ratio:1.45}#speedplot{height:225px}#timeline{height:142px}.scroll{overflow:auto}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border-bottom:1px solid #29425c;padding:9px 7px;text-align:left;white-space:nowrap}th{color:#c8daf0}.stat{padding:10px;background:#0e1b2e;border-radius:10px}.stat strong{display:block;font-size:22px;font-variant-numeric:tabular-nums}.pill{font-size:12px;padding:5px 9px;border:1px solid #37536d;border-radius:20px}.warning{border-left:3px solid #ffbb60;padding:10px;background:#252238}.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}.field{flex:1 1 140px;min-width:100px}#time{width:100%}@media(max-width:800px){.cols{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}header,main,footer{padding:12px}.card{padding:13px}}
+</style></head><body>
+<header><h1>◉ LOTO DRAW LAB <span class="muted">/ 攪拌比較ラボ</span></h1>
+<p class="muted">第2157回の公式映像観察値と、旧方式・A・B・Cの独立モデルを同一条件で比較。検証ブランチ専用／当選数字の予測には使用しません。</p></header>
+<main style="display:grid;gap:14px">
+<div class="card warning"><strong>観察と仮説を分離</strong>
+<div>動画から確認できたのは受け部への球の分離・下側ガイドへの移動時刻、残球の周回継続、ボーナス専用段への移送。<strong>パレット駆動軸の回転数・停止・反転、および個々の球の軌跡は未計測</strong>。以下の円運動は代表球の概念的な近似軌道であり、実測軌道ではありません。</div></div>
+<section class="card">
+<div class="controls">
+<button id="play">▶ 再生</button><button id="reset" class="secondary">↺ 最初から</button>
+<label class="field">表示範囲<select id="scope"><option value="7">本数字6球＋ボーナス</option><option value="6">本数字6球のみ</option></select></label>
+<label class="field">再生速度<select id="rate"><option value="1">1×</option><option value="5">5×</option><option value="15" selected>15×</option><option value="40">40×</option></select></label>
+<button id="csv" class="secondary">比較データCSV</button>
+</div><div style="margin:12px 0"><div class="controls" style="justify-content:space-between"><span id="clock" class="pill">映像基準 0.0 秒</span><span id="event" class="pill">観察イベントを待機</span></div>
+<input type="range" id="time" min="0" max="385" step=".1" value="0" aria-label="経過時刻を移動"></div>
+<div class="legend"><span><span class="dot" style="background:#eab765"></span>旧方式：即時方向反転</span><span><span class="dot" style="background:#64cee7"></span>A：同方向・連続回転</span><span><span class="dot" style="background:#e779ae"></span>B：減速・停止・再加速</span><span><span class="dot" style="background:#a4d59a"></span>C：映像イベントのみ（回転不明）</span></div>
+</section>
+<section class="card"><h2>同一初期条件・仮定パラメータ</h2>
+<div class="grid">
+<label>パレット仮定速度 <b id="rpmv">90 rpm</b><input id="rpm" type="range" min="20" max="140" step="5" value="90"></label>
+<label>B：減速時間 <b id="brakev">1.0 s</b><input id="brake" type="range" min=".2" max="5" step=".2" value="1"></label>
+<label>B：停止保持 <b id="dwellv">2.0 s</b><input id="dwell" type="range" min="0" max="8" step=".5" value="2"></label>
+<label>B：再加速時間 <b id="accelv">1.0 s</b><input id="accel" type="range" min=".2" max="5" step=".2" value="1"></label>
+</div><p class="muted" style="font-size:12px">各モデルは同一の初期球位相0°・代表球周回速度0 rpmから計算。旧/A/Bの「受け部イベント時刻」は公平な比較のため観察時刻に固定してあり、モデルから予測した排出時刻ではありません。球の応答係数0.2・時定数0.4秒も仮定です。</p></section>
+<div class="cols"><section class="card"><h2>代表球の周回軌道（近似）</h2><canvas id="orbit" width="700" height="480"></canvas><p class="muted" style="font-size:12px">軌道は模式的な同心円。球の個別衝突、摩擦、選別、径方向移動を再現していません。Cは位置を表示しません。</p></section>
+<section class="card"><h2>代表球の平均周回速度の推移（仮説）</h2><canvas id="speedplot" width="660" height="300"></canvas><p class="muted" style="font-size:12px">旧/A/Bのみ。モデルCには駆動軸や球の回転数の実測値がないため速度を描きません。</p></section></div>
+<section class="card"><h2>抽出イベントの比較タイムライン</h2><canvas id="timeline" width="1080" height="190"></canvas><p class="muted" style="font-size:12px">緑＝観察上の受け部出現、淡色＝下側ガイドへの移動。A/B/旧方式も同じ観察イベントに合わせて比較表示しており、独立にタイミングが一致したことを示すものではありません。</p></section>
+<div class="grid" id="stats"></div>
+<section class="card"><h2>観察イベント（公式映像の時刻を換算）</h2><div class="scroll"><table><thead><tr><th>球</th><th>番号</th><th>受け部時刻</th><th>前球との差</th><th>保持</th><th>下ガイド時刻</th><th>段</th><th>駆動軸</th></tr></thead><tbody id="rows"></tbody></table></div><p class="muted" style="font-size:12px">時刻・保持時間は原観察記録から転記。受け部時刻は「透明な受け部で球が分離して見えた時点」。ゲート内部の捕捉時刻ではありません。保持時間の記録は2.4〜2.8秒。</p></section>
+<section class="card"><h2>研究上の結論と次の測定</h2><p>現在の観察だけではAとBの優劣、特にパレットの停止・再始動は判定できない。Cの保持時間と2段構成は観察に基づく再生であり、予測精度を意味しない。次の検証では固定画角でパレットの目印を追跡し、別開催回でも同じ基準で時刻を測る。</p></section>
+</main><footer class="muted">研究用の独立ビュー。データの送信・固定予想の変更・GitHubチェックポイントへの書き込みは行いません。</footer>
+<script>
+"use strict";
+const observations=[
+ {number:38,t:2151.8,hold:2.5,tier:"本数字"},{number:13,t:2199.1,hold:2.8,tier:"本数字"},
+ {number:34,t:2245.8,hold:2.7,tier:"本数字"},{number:22,t:2292.5,hold:2.6,tier:"本数字"},
+ {number:39,t:2339.4,hold:2.6,tier:"本数字"},{number:20,t:2385.8,hold:2.7,tier:"本数字"},
+ {number:33,t:2533.9,hold:2.4,tier:"ボーナス"}];
+const $=x=>document.getElementById(x), colors={legacy:"#eab765",a:"#64cee7",b:"#e779ae",c:"#a4d59a"};
+let t=0, playing=false, lastFrame=0, traces={};
+function events(){return observations.slice(0,Number($("scope").value)).map((e,i)=>({...e,index:i+1,rel:e.t-observations[0].t}));}
+function params(){return {rpm:Number($("rpm").value),brake:Number($("brake").value),dwell:Number($("dwell").value),accel:Number($("accel").value)};}
+function duration(){const es=events();return es[es.length-1].rel+es[es.length-1].hold+5;}
+function actualPallet(model,time,p){if(model==="a")return p.rpm;
+ const es=events();let index=-1;for(let i=0;i<es.length;i++){if(time>=es[i].rel)index=i;else break;}
+ if(index<0)return p.rpm;
+ const elapsed=time-es[index].rel;
+ if(model==="legacy")return p.rpm*((index+1)%2===0?1:-1)*(elapsed>=.66?1:-1);
+ if(model==="b"){if(elapsed<p.brake)return p.rpm*(1-elapsed/p.brake);
+ if(elapsed<p.brake+p.dwell)return 0;
+ if(elapsed<p.brake+p.dwell+p.accel)return p.rpm*(elapsed-p.brake-p.dwell)/p.accel;
+ return p.rpm;}return NaN;
+}
+function makeTrace(model){const p=params(),total=duration(),dt=.1;let speed=0,angle=0;const arr=[];
+ for(let i=0;i<=Math.ceil(total/dt);i++){const tm=Math.min(total,i*dt), motor=actualPallet(model,tm,p);
+ if(i){const prev=arr[arr.length-1],advance=tm-prev.t;
+ speed+=(.2*motor-speed)*(-Math.expm1(-advance/.4));
+ angle+=speed*2*Math.PI/60*advance;}
+ arr.push({t:tm,motor,speed,angle});}
+ return arr;}
+function recalc(){for(const model of ["legacy","a","b"])traces[model]=makeTrace(model);
+ $("time").max=String(duration());if(t>duration())t=duration();render();}
+function sample(model,sec){const a=traces[model],index=Math.min(a.length-1,Math.floor(sec/.1));return a[Math.max(0,index)];}
+function basePlot(c){const ctx=c.getContext("2d"),w=c.width,h=c.height;ctx.clearRect(0,0,w,h);return [ctx,w,h];}
+function drawOrbit(){const [ctx,w,h]=basePlot($("orbit")),cx=w/2,cy=h/2;
+ ctx.fillStyle="#10243a";ctx.fillRect(0,0,w,h);const radius=150;ctx.strokeStyle="#54738b";ctx.lineWidth=13;ctx.beginPath();ctx.ellipse(cx,cy,radius+12,radius*.77+12,0,0,2*Math.PI);ctx.stroke();
+ ctx.lineWidth=1;ctx.setLineDash([5,5]);ctx.strokeStyle="#3d5b72";ctx.beginPath();ctx.ellipse(cx,cy,radius,radius*.77,0,0,2*Math.PI);ctx.stroke();ctx.setLineDash([]);
+ const ballRadius=10, offsets={legacy:0,a:20,b:-20};
+ for(const model of ["legacy","a","b"]){const tr=sample(model,t),theta=tr.angle;const r=radius+offsets[model];
+ const x=cx+r*Math.cos(theta),y=cy+r*.77*Math.sin(theta);
+ ctx.fillStyle=colors[model];ctx.beginPath();ctx.arc(x,y,ballRadius,0,2*Math.PI);ctx.fill();
+ ctx.fillStyle="#ecf4ff";ctx.font="14px system-ui";ctx.fillText(model==="legacy"?"旧":model.toUpperCase(),x+12,y-8);}
+ ctx.fillStyle="#b7c9da";ctx.font="16px system-ui";ctx.fillText("C：球の実測位置なし",20,h-24);
+ ctx.fillText("同じ初期位相・仮定した1球のモデル軌道",20,30);
+ ctx.font="13px system-ui";ctx.fillText("受け部（模式位置）",cx+radius+28,cy-34);
+ ctx.strokeStyle="#a4d59a";ctx.strokeRect(cx+radius+10,cy-20,20,40);
+}
+function drawSpeed(){const [ctx,w,h]=basePlot($("speedplot")),x0=55,y0=25,plotW=w-83,plotH=h-65,maxT=duration(),p=params();
+ ctx.fillStyle="#0c1829";ctx.fillRect(0,0,w,h);const bound=Math.max(35,p.rpm*.3);
+ ctx.font="13px system-ui";ctx.strokeStyle="#344c65";ctx.fillStyle="#afc3d7";
+ for(let i=0;i<=4;i++){const y=y0+i*plotH/4;ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x0+plotW,y);ctx.stroke();ctx.fillText((bound*(1-i/2)).toFixed(0),6,y+4);}
+ for(let i=0;i<=4;i++){const x=x0+i*plotW/4;ctx.fillText(Math.round(maxT*i/4)+"s",x-10,h-14);}
+ for(const model of ["legacy","a","b"]){const a=traces[model];ctx.strokeStyle=colors[model];ctx.lineWidth=2;ctx.beginPath();a.forEach((r,i)=>{const x=x0+r.t/maxT*plotW,y=y0+(bound-r.speed)/(2*bound)*plotH;i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();}
+ const x=x0+t/maxT*plotW;ctx.strokeStyle="#fff";ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(x,y0);ctx.lineTo(x,y0+plotH);ctx.stroke();ctx.setLineDash([]);
+ ctx.fillStyle="#b2c6da";ctx.fillText("rpm (球速度の仮定)",x0,15);}
+function drawTimeline(){const [ctx,w,h]=basePlot($("timeline")),es=events(),maxT=duration(),x0=74,wide=w-102;
+ ctx.fillStyle="#0b1a2b";ctx.fillRect(0,0,w,h);ctx.font="13px system-ui";
+ const names=[["c","観察 C"],["a","モデル A"],["b","モデル B"],["legacy","旧方式"]];
+ names.forEach(([m,label],j)=>{let y=26+j*41;ctx.fillStyle=colors[m];ctx.fillText(label,8,y+3);ctx.strokeStyle="#36516b";ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(w-20,y);ctx.stroke();
+ es.forEach(e=>{const x=x0+e.rel/maxT*wide,finish=x0+(e.rel+e.hold)/maxT*wide;ctx.fillStyle=colors[m];ctx.fillRect(x-3,y-8,6,16);
+ ctx.fillStyle="#cbd9ed";ctx.fillRect(x+3,y-4,Math.max(3,finish-x),8);});});
+ ctx.fillStyle="#a5bad0";ctx.fillText("受け部 → 下側ガイド（イベント時刻は全方式で共通）",x0,184);
+}
+function fmt(n){return Number(n).toFixed(1);}
+function render(){const es=events(),active=es.filter(e=>e.rel<=t),last=active.at(-1),remaining=43-active.length;
+ $("time").value=t;$("clock").textContent="1球目の受け部から "+fmt(t)+" 秒";
+ $("event").textContent=last?(last.index===7?"ボーナス":"本数字"+last.index)+"："+last.number+" ／ "+(t<last.rel+last.hold?"受け部で保持":"下側ガイドへ移動済")+" ／ 残球 "+remaining:"最初の受け部へ";
+ $("stats").innerHTML=[
+ ["観察された抽出",""+active.length+"/"+es.length],["本数字の間隔平均","46.8 秒"],["受け部の保持範囲","2.4–2.8 秒"],["Cの駆動RPM","未測定"]
+ ].map(([a,b])=>'<div class="stat"><small>'+a+'</small><strong>'+b+'</strong></div>').join("");
+ drawOrbit();drawSpeed();drawTimeline();
+}
+function setupRows(){const es=events();$("rows").innerHTML=es.map((e,i)=>'<tr><td>'+(i===6?"ボーナス":i+1+"球目")+'</td><td>'+e.number+'</td><td>'+fmt(e.t)+'s</td><td>'+(i?fmt(e.t-es[i-1].t)+'s':"—")+'</td><td>'+fmt(e.hold)+'s</td><td>'+fmt(e.t+e.hold)+'s</td><td>'+e.tier+'</td><td>不明</td></tr>').join("");}
+function tick(now){if(playing&&lastFrame){t=Math.min(duration(),t+(now-lastFrame)/1000*Number($("rate").value));if(t>=duration()){playing=false;$("play").textContent="▶ 再生";}render();}lastFrame=now;requestAnimationFrame(tick);}
+function exportCSV(){const es=events(),p=params(),lines=[["model","relative_time_s","pallet_rpm_hypothesis","ball_mean_rpm_proxy","phase_rad_proxy","event","tier","number","evidence"]];
+ for(const e of es){for(const kind of ["gate_pocket_visible","lower_guide_visible"]){const ts=e.rel+(kind==="lower_guide_visible"?e.hold:0);lines.push(["c",fmt(ts),"","","",kind,e.tier,e.number,"observed"])}}for(const m of ["legacy","a","b"]){for(const r of traces[m].filter((_,i)=>i%10===0)){lines.push([m,fmt(r.t),fmt(r.motor),fmt(r.speed),fmt(r.angle),"","","","hypothetical"])}}const csv=lines.map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(",")).join("\n");const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="draw2157_cycle_comparison.csv";a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);}
+$("play").onclick=()=>{playing=!playing;$("play").textContent=playing?"Ⅱ 一時停止":"▶ 再生";};
+$("reset").onclick=()=>{t=0;playing=false;$("play").textContent="▶ 再生";render();};
+$("csv").onclick=exportCSV;
+$("time").oninput=e=>{t=Number(e.target.value);render();};
+$("scope").onchange=()=>{t=0;setupRows();recalc();};
+for(const id of ["rpm","brake","dwell","accel"]){$(id).oninput=()=>{$(id+"v").textContent=fmt($(id).value)+(id==="rpm"?" rpm":" s");recalc();};}
+setupRows();recalc();requestAnimationFrame(tick);
+</script></body></html>
