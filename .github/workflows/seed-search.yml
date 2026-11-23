@@ -13,6 +13,7 @@ on:
       - 'global_search.py'
       - 'main_search.py'
       - 'test_main.py'
+      - 'evaluate_forecasts.py'
       - 'test_global.py'
       - 'test_native.py'
       - 'analyze.py'
@@ -37,7 +38,7 @@ jobs:
           g++ -O3 -std=c++17 -Wall -Wextra global_scan.cpp -o global_scan
       - name: Validate Python and cross-check exact matches
         run: |
-          python -m compileall -q worker.py import_draws.py import_history.py analyze.py run_search.py global_search.py main_search.py
+          python -m compileall -q worker.py import_draws.py import_history.py analyze.py run_search.py global_search.py main_search.py evaluate_forecasts.py
           python -m unittest -q test_worker.py test_native.py test_global.py test_main.py
       - name: Search and checkpoint in D1
         env:
