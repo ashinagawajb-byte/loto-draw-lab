@@ -92,7 +92,6 @@ def fetch(url,token):
 
 def save(data,destination=DESTINATION,now=None):
     rid,rows=validate_csv(data)
-    timestamp=now or datetime.now(JST)
     # Reject post-draw uploads masquerading as a historical fixed forecast.
     # A previously committed snapshot remains intact and available.
     filename=f'loto6-{rid}-fixed-5tickets.csv'
@@ -103,11 +102,9 @@ def save(data,destination=DESTINATION,now=None):
         if (existing_round,sorted(existing_rows))!=(rid,sorted(rows)):
             raise RuntimeError('An immutable historical Analyzer export differs; manual review required')
         return 'unchanged',filename
-    # Only accept snapshots on a Monday or Thursday no later than 18:30 JST.
-    # Round/date cannot be verified from this CSV alone, so do NOT claim the
-    # Site's original fixed timestamp has been independently proven.
-    if timestamp.weekday() not in (0,3) or (timestamp.hour,timestamp.minute)>(18,30):
-        raise RuntimeError('No historical backfill via scheduled acquisition; before-cutoff retrieval only')
+    # Acquisition time is NOT proof of the original fixed timestamp. Store
+    # the first valid observed snapshot, refuse changes and let compare_models
+    # label its provenance as unverified. Never silently back-date a lock.
     destination.mkdir(parents=True,exist_ok=True)
     # Canonical UTF-8 export for deterministic diffs.
     with path.open('w',newline='',encoding='utf-8') as f:
