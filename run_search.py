@@ -5,11 +5,13 @@ from datetime import datetime, timezone
 from worker import D1DailyQuotaExceeded, USAGE
 import import_history
 import global_search
+import main_search
 
 def run():
     try:
         import_history.run()
         global_search.run()
+        main_search.run()
     except D1DailyQuotaExceeded as exc:
         print('::warning title=Cloudflare D1 daily quota::D1 account-wide free-tier daily limit reached; resume after 00:00 UTC. Existing checkpoints are preserved.')
         print('D1 daily quota reached:',str(exc)[:400])
