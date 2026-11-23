@@ -8,6 +8,9 @@ on:
     paths:
       - 'dashboard.py'
       - 'evaluate_forecasts.py'
+      - 'compare_models.py'
+      - 'comparisons/**'
+      - 'test_comparisons.py'
       - 'predictions/**'
       - 'data/loto6.csv'
       - 'simulator/**'
@@ -34,7 +37,8 @@ jobs:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
         run: |
-          python -m compileall -q dashboard.py evaluate_forecasts.py
+          python -m compileall -q dashboard.py evaluate_forecasts.py compare_models.py
+          python -m unittest -q test_comparisons.py
           if ! python dashboard.py; then
             echo "::warning title=D1 quota::Could not refresh the dashboard; reusing the last public snapshot so the simulator can deploy."
             mkdir -p site
