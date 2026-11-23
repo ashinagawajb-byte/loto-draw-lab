@@ -3,7 +3,7 @@ import csv
 import tempfile
 import unittest
 from pathlib import Path
-from compare_models import load_site_predictions, classification, HEADERS
+from compare_models import load_site_predictions, load_raw_analyzer_files, classification, HEADERS
 
 class AnalyzerComparisonTests(unittest.TestCase):
     def make_csv(self,folder,change=None):
@@ -34,6 +34,22 @@ class AnalyzerComparisonTests(unittest.TestCase):
             found,meta=load_site_predictions(Path(folder)/'absent.csv')
             self.assertFalse(found)
             self.assertEqual(meta['state'],'awaiting_export')
+    def test_actual_japanese_analyzer_csv(self):
+        from compare_models import RAW_EXPORT
+        exported=load_raw_analyzer_files(RAW_EXPORT)
+        self.assertIn(2157,exported)
+        portfolio=exported[2157][0]
+        self.assertEqual(portfolio['generation'],'未記載')
+        self.assertIsNone(portfolio['locked_at_jst'])
+        self.assertEqual(portfolio['tickets'][0],[16,21,33,34,38,40])
+        self.assertEqual(portfolio['tickets'][4],[2,9,13,18,26,28])
+
+    def test_japanese_csv_rejects_partial_portfolio(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'loto6-2157-fixed-5tickets.csv'
+            path.write_text('回,口,数字1,数字2,数字3,数字4,数字5,数字6\\n2157,1,1,2,3,4,5,6\\n',encoding='utf-8')
+            with self.assertRaises(ValueError):load_raw_analyzer_files(folder)
+
     def test_grades(self):
         main={1,2,3,4,5,6}
         self.assertEqual(classification([1,2,3,4,5,6],main,7),1)
