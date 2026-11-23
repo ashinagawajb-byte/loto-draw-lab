@@ -1,0 +1,21 @@
+{
+  "project": "LOTO DRAW LAB",
+  "purpose": "Pre-draw exploratory virtual-seed forecast, NOT evidence of a predictive advantage",
+  "lottery": "LOTO6",
+  "round": 2157,
+  "draw_date_jst": "2026-11-23",
+  "last_known_round": 2156,
+  "source_dashboard_generated_at": "2026-11-23T04:42:12+00:00",
+  "source_global_cursor": 132000000,
+  "source_loto6_matched_rounds": 965,
+  "selection_note": "Last 20 rounds with verified exact virtual seeds among the latest published 800 result records; uses smallest seed per round.",
+  "candidates": [
+    {"method": "median_20", "seed": 42805448, "main": [1, 9, 10, 18, 19, 29], "bonus": 28},
+    {"method": "mean_20", "seed": 52134493, "main": [9, 10, 15, 16, 23, 27], "bonus": 14},
+    {"method": "trimmed_mean_20", "seed": 50026470, "main": [1, 7, 12, 28, 29, 38], "bonus": 26},
+    {"method": "last_plus_median_delta", "seed": 9470113, "main": [5, 14, 17, 27, 39, 43], "bonus": 18},
+    {"method": "sha256_control", "seed": 1050228304, "main": [11, 27, 29, 32, 35, 42], "bonus": 23}
+  ],
+  "control_hash_input": "LOTO6|2157|2026-11-23|2156:1,5,23,26,35,42|bonus8",
+  "research_protocol": "Freeze before lottery draw; do not modify candidates. Score matched main and bonus counts separately. Seed is only a virtual PRNG input, not actual lottery machine state."
+}
