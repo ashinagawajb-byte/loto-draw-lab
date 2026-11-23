@@ -5,17 +5,121 @@
   "round": 2157,
   "draw_date_jst": "2026-11-23",
   "last_known_round": 2156,
-  "source_dashboard_generated_at": "2026-11-23T04:42:12+00:00",
+  "source_dashboard_generated_at": "2026-11-23T04:42:24+00:00",
   "source_global_cursor": 132000000,
   "source_loto6_matched_rounds": 965,
   "selection_note": "Last 20 rounds with verified exact virtual seeds among the latest published 800 result records; uses smallest seed per round.",
   "candidates": [
-    {"method": "median_20", "seed": 42805448, "main": [1, 9, 10, 18, 19, 29], "bonus": 28},
-    {"method": "mean_20", "seed": 52134493, "main": [9, 10, 15, 16, 23, 27], "bonus": 14},
-    {"method": "trimmed_mean_20", "seed": 50026470, "main": [1, 7, 12, 28, 29, 38], "bonus": 26},
-    {"method": "last_plus_median_delta", "seed": 9470113, "main": [5, 14, 17, 27, 39, 43], "bonus": 18},
-    {"method": "sha256_control", "seed": 1050228304, "main": [11, 27, 29, 32, 35, 42], "bonus": 23}
+    {
+      "method": "median_20",
+      "seed": 42805448,
+      "main": [
+        1,
+        9,
+        10,
+        18,
+        19,
+        29
+      ],
+      "bonus": 28
+    },
+    {
+      "method": "mean_20",
+      "seed": 52134493,
+      "main": [
+        9,
+        10,
+        15,
+        16,
+        23,
+        27
+      ],
+      "bonus": 14
+    },
+    {
+      "method": "trimmed_mean_20",
+      "seed": 50026470,
+      "main": [
+        1,
+        7,
+        12,
+        28,
+        29,
+        38
+      ],
+      "bonus": 26
+    },
+    {
+      "method": "last_plus_median_delta",
+      "seed": 9470113,
+      "main": [
+        5,
+        14,
+        17,
+        27,
+        39,
+        43
+      ],
+      "bonus": 18
+    },
+    {
+      "method": "sha256_control",
+      "seed": 1050228304,
+      "main": [
+        11,
+        27,
+        29,
+        32,
+        35,
+        42
+      ],
+      "bonus": 23
+    }
   ],
   "control_hash_input": "LOTO6|2157|2026-11-23|2156:1,5,23,26,35,42|bonus8",
-  "research_protocol": "Freeze before lottery draw; do not modify candidates. Score matched main and bonus counts separately. Seed is only a virtual PRNG input, not actual lottery machine state."
+  "research_protocol": "Freeze before lottery draw; do not modify candidates. Score matched main and bonus counts separately. Seed is only a virtual PRNG input, not actual lottery machine state.",
+  "source_last20_matching_rounds": [
+    2109,
+    2112,
+    2114,
+    2120,
+    2123,
+    2125,
+    2129,
+    2130,
+    2133,
+    2136,
+    2137,
+    2138,
+    2139,
+    2140,
+    2144,
+    2145,
+    2147,
+    2150,
+    2153,
+    2156
+  ],
+  "source_last20_min_seeds": [
+    105965583,
+    73454485,
+    64969410,
+    36128864,
+    21845417,
+    63813507,
+    355992,
+    42075424,
+    88686798,
+    82085999,
+    3243722,
+    17431408,
+    86249437,
+    124165601,
+    84302276,
+    28269804,
+    16273681,
+    43535471,
+    41881799,
+    17955188
+  ]
 }
