@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from worker import query
 from evaluate_forecasts import score_predictions
+from compare_models import compare
 
 def get_data():
     summary = query("""
@@ -107,7 +108,8 @@ def get_data():
             "global": global_rows[0] if global_rows else None,
             "global_counts": global_counts,
             "main_progress": main_state, "main_counts": main_counts,
-            "forecast_scores": score_predictions(), "note": "シード値は仮想PRNGの値であり、実機の状態ではありません。過去結果に合わせた値から予測力は導けません。"}
+            "forecast_scores": score_predictions(),
+            "site_comparison": compare(), "note": "シード値は仮想PRNGの値であり、実機の状態ではありません。過去結果に合わせた値から予測力は導けません。"}
 
 HTML = r"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -152,6 +154,11 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 <div class="panel"><div class="muted">探索済みシード</div><div class="metric" id="scanned">—</div></div>
 <div class="panel"><div class="muted">完全一致した開催回</div><div class="metric" id="finished">—</div></div>
 <div class="panel"><div class="muted">現在の探索範囲に対する進捗</div><div class="metric" id="percent">—</div></div></section>
+<section class="panel"><h2>Site Analyzer × DRAW LAB｜5口比較</h2>
+<p class="muted lead">両者の抽せん前に固定した5口を同じ開催回で照合します。Site予測が未取込の場合は未取得と明示し、推測の数字で代用しません。</p>
+<div id="site-comparison-status" class="muted lead">データ確認中</div>
+<div class="scroll"><table><thead><tr><th>開催回</th><th>予測元</th><th>モデル</th><th>最大一致</th><th>5口の一致合計</th><th>5等以上</th></tr></thead><tbody id="site-comparison-table"></tbody></table></div>
+</section>
 <section class="panel"><h2>抽せん前に固定した予測の検証</h2>
 <p class="muted lead">抽せん前にGitHubへ保存した候補だけを対象に、公式結果CSVが登録された後に採点します。数字6個の一致数が主指標。ボーナスは参考値です。</p>
 <div id="forecast-scores" class="muted lead">照合待ち</div>
@@ -358,6 +365,27 @@ const active=D.active.filter(v=>Number(v.game)===game);
 $('active').textContent=active.length?active.map(v=>'第'+v.round+'回：'+n(v.scanned)+' / '+n(v.seed_limit)).join(' ／ '):'現在部分的に処理済みの開催回はありません';
 }
 document.querySelectorAll('[data-game]').forEach(b=>b.addEventListener('click',()=>{game=Number(b.dataset.game);show();if($('seed-input').value)renderSeed($('seed-input').value)}));
+const siteComparison=D.site_comparison||{};
+const siteStatus=siteComparison.site_source||{};
+const paired=Number(siteComparison.paired_rounds||0);
+$('site-comparison-status').textContent=(siteStatus.state==='loaded'
+ ?'Site Analyzer：取込済み '+(siteStatus.loaded_rounds||0)+'開催回・'+(siteStatus.portfolio_count||0)+'組。'
+ :'Site Analyzer：予想記録が未取得。')+
+ ' 両方式が同じ開催回で採点できた回数 '+paired+'回。比較は5口同士で行います。';
+const siteBody=$('site-comparison-table');siteBody.replaceChildren();
+for(const draw of (siteComparison.scored_rounds||[]).slice(-12).reverse()){
+ for(const p of draw.portfolios){
+  const tr=document.createElement('tr');
+  for(const value of [draw.round,p.source,p.method+(p.generation?' / '+p.generation:''),p.max_main_hits+'個',p.main_hits_sum+'個',p.any_5th_or_better?'あり':'なし']){
+   const td=document.createElement('td');td.textContent=value;tr.append(td)
+  }
+  siteBody.append(tr);
+ }
+}
+if(!siteBody.children.length){
+ const row=document.createElement('tr'),cell=document.createElement('td');
+ cell.colSpan=6;cell.textContent='両モデルの事前予想と開催結果がそろうと比較を表示します。';row.append(cell);siteBody.append(row)
+}
 const forecastScores=D.forecast_scores||[];
 const forecastBox=$('forecast-scores');
 if(!forecastScores.length){
