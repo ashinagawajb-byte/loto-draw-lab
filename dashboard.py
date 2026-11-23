@@ -30,6 +30,14 @@ def get_data():
           SELECT game,COUNT(DISTINCT round) AS matched_rounds,COUNT(*) AS exact_seeds
           FROM global_exact_matches GROUP BY game
         """)
+        combined_counts = query("""
+          SELECT game,COUNT(DISTINCT round) AS completed,COUNT(*) AS exact
+          FROM (
+            SELECT game,round,seed FROM exact_matches
+            UNION
+            SELECT game,round,seed FROM global_exact_matches
+          ) GROUP BY game
+        """)
     except RuntimeError as exc:
         if 'no such table' not in str(exc).lower():
             raise
@@ -40,6 +48,7 @@ def get_data():
         """)
         global_rows = []
         global_counts = []
+        combined_counts = []
     active = query("""
       SELECT game, round, scanned, seed_limit, best
       FROM jobs WHERE scanned > 0 AND scanned < seed_limit
@@ -55,6 +64,12 @@ def get_data():
         if 'no such table: search_runs' not in str(exc).lower():
             raise
         runs = []
+    combined_by_game={int(row["game"]):row for row in combined_counts}
+    for row in summary:
+        matched=combined_by_game.get(int(row["game"]))
+        if matched:
+            row["completed"]=matched["completed"]
+            row["exact"]=matched["exact"]
     for row in completed:
         row["best"] = [{"seed":int(row["seed"]),"hit":int(row["game"]),"bonusHit":1 if int(row["game"])==6 else 2}]
     for row in active:
@@ -119,7 +134,7 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 <div class="progress"><div id="global-bar" style="width:0%"></div></div>
 <p class="muted lead" id="global-note"></p>
 </section>
-<section class="panel"><h2>クラウド探索の稼働状況</h2>
+<section class="panel"><h2>旧方式のクラウド探索履歴（参考）</h2>
 <div class="grid">
 <div><div class="muted lead">直近の探索件数（両ゲーム合計）</div><div class="metric" id="last-scanned">—</div></div>
 <div><div class="muted lead">直近の処理速度</div><div class="metric" id="last-rate">—</div></div>
@@ -307,7 +322,7 @@ $('global-percent').textContent=globalState?globalPercent.toFixed(3)+'%':'—';
 $('global-matches').textContent=n((D.global_counts||[]).reduce((a,v)=>a+Number(v.exact_seeds||0),0));
 $('global-bar').style.width=Math.min(100,globalPercent)+'%';
 $('global-note').textContent=globalState?
-  '全4,294,967,296シードのうち '+n(globalCursor)+'件を走査。履歴CSV更新時は再照合のため新方式の進捗を0から開始し、発見済み一致は保持します。':
+  '全4,294,967,296シードのうち '+n(globalCursor)+'件を走査。最終チェックポイント（UTC）：'+globalState.updated_at+'。履歴CSV更新時は新しい対象も含めて再照合するため進捗を0から開始し、発見済み一致は保持します。':
   '新しい一括探索エンジンの初回チェックポイントを待っています。';
 const runs=D.runs||[];
 const latest=runs[0];
