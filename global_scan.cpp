@@ -2,7 +2,8 @@
 // shuffle and compare them against ALL historical target rounds in memory.
 // Usage: global_scan START COUNT TARGETS.tsv
 // TSV rows: game TAB round TAB main CSV TAB bonus CSV
-// stdout: game TAB round TAB seed (only complete main+bonus matches).
+// stdout: game TAB round TAB seed TAB bonus_matched (when mode=main)
+// By default stdout remains game TAB round TAB seed (complete main+bonus matches).
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -71,9 +72,12 @@ static Key draw(int n,int k,int b,uint32_t seed){
   return key;
 }
 using Index=std::unordered_map<Key,std::vector<std::string>,KeyHash>;
+using MainIndex=std::unordered_map<uint64_t,std::vector<std::pair<std::string,uint64_t>>>;
 int main(int argc,char** argv){
   try{
-    if(argc!=4)throw std::invalid_argument("usage: global_scan START COUNT TARGETS.tsv");
+    if(argc!=4 && argc!=5)throw std::invalid_argument("usage: global_scan START COUNT TARGETS.tsv [main]");
+    const bool main_only=argc==5;
+    if(main_only && std::string(argv[4])!="main")throw std::invalid_argument("invalid mode");
     size_t used=0;
     const std::string startstr=argv[1],countstr=argv[2];
     const uint64_t start=std::stoull(startstr,&used);
@@ -83,6 +87,7 @@ int main(int argc,char** argv){
     std::ifstream in(argv[3]);
     if(!in)throw std::runtime_error("targets file inaccessible");
     Index idx6,idx7;
+    MainIndex main6,main7;
     std::string line;size_t entries=0;
     while(std::getline(in,line)){
       if(line.empty())continue;
@@ -100,17 +105,28 @@ int main(int argc,char** argv){
       const Key key{mask(parse(cols[2]),k,n),mask(parse(cols[3]),b,n)};
       if(key.main&key.bonus)throw std::invalid_argument("overlap");
       (six?idx6:idx7)[key].push_back(cols[1]);
+      (six?main6:main7)[key.main].push_back({cols[1],key.bonus});
       ++entries;
     }
     if(entries==0||idx6.empty()||idx7.empty())throw std::invalid_argument("missing target games");
     for(uint64_t offset=0;offset<count;++offset){
       const uint32_t seed=static_cast<uint32_t>(start+offset);
-      const auto find6=idx6.find(draw(43,6,1,seed));
-      if(find6!=idx6.end())for(const auto& round:find6->second)
-        std::cout<<"6\t"<<round<<"\t"<<seed<<"\n";
-      const auto find7=idx7.find(draw(37,7,2,seed));
-      if(find7!=idx7.end())for(const auto& round:find7->second)
-        std::cout<<"7\t"<<round<<"\t"<<seed<<"\n";
+      const Key k6=draw(43,6,1,seed),k7=draw(37,7,2,seed);
+      if(main_only){
+        const auto a=main6.find(k6.main);
+        if(a!=main6.end())for(const auto& target:a->second)
+          std::cout<<"6\t"<<target.first<<"\t"<<seed<<"\t"<<(target.second==k6.bonus?1:0)<<"\n";
+        const auto b=main7.find(k7.main);
+        if(b!=main7.end())for(const auto& target:b->second)
+          std::cout<<"7\t"<<target.first<<"\t"<<seed<<"\t"<<(target.second==k7.bonus?1:0)<<"\n";
+      }else{
+        const auto a=idx6.find(k6);
+        if(a!=idx6.end())for(const auto& round:a->second)
+          std::cout<<"6\t"<<round<<"\t"<<seed<<"\n";
+        const auto b=idx7.find(k7);
+        if(b!=idx7.end())for(const auto& round:b->second)
+          std::cout<<"7\t"<<round<<"\t"<<seed<<"\n";
+      }
     }
   }catch(const std::exception& ex){
     std::cerr<<"global_scan: "<<ex.what()<<"\n";return 2;
