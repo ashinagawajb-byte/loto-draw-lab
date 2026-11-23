@@ -188,7 +188,7 @@ function drawSpeed(){
  const x=sec=>x0+(sec-left)/(right-left)*plotW;
  const bound=Math.max(8,p.rpm*.24);
  const y=rpm=>y0+(bound-rpm)/(2*bound)*plotH;
- ctx.font="12px system-ui";ctx.fillStyle="#b2c6da";ctx.fillText("球の近似 rpm",x0,16);
+ ctx.font="12px system-ui";ctx.textAlign="left";ctx.fillStyle="#b2c6da";ctx.fillText("球の近似 rpm",x0,16);
  ctx.save();ctx.beginPath();ctx.rect(x0,y0,plotW,plotH);ctx.clip();
  ctx.fillStyle="#512b4c";
  for(const e of schedule)ctx.fillRect(x(e.rel+p.brake),y0,p.dwell/(right-left)*plotW,plotH);
@@ -211,6 +211,7 @@ function drawSpeed(){
  ctx.restore();
  ctx.fillStyle="#afc3d7";
  for(let i=0;i<=4;i++){
+  ctx.textAlign="left";
   ctx.fillText((bound*(1-i/2)).toFixed(0),5,y0+i*plotH/4+4);
   const sec=left+i*(right-left)/4;
   ctx.textAlign=i===4?"right":i===0?"left":"center";
