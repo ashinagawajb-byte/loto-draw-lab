@@ -32,7 +32,7 @@ class DrawCycleComparisonTests(unittest.TestCase):
         self.assertTrue(all(x[7]==90 for x in a))
     def test_ui_embeds_no_sensitive_state_and_has_all_modes(self):
         page=(ROOT/'cycle_compare.html').read_text(encoding='utf-8')
-        for label in ('代表球の周回軌道','モデル C','回転数の実測値がない',
+        for label in ('代表球の周回軌道','モデルC','回転数の実測値がない',
                       '下側ガイド','比較データCSV','canvas id="speedplot"'):
             self.assertIn(label,page)
         self.assertNotIn('CF_API_TOKEN',page)
