@@ -3,10 +3,7 @@ on:
   push:
     branches: [research/draw-2157-cycle]
     paths:
-      - 'research/draw_cycle.py'
-      - 'research/cycle_compare.html'
-      - 'research/test_cycle_compare.py'
-      - 'research/draw-2157.md'
+      - 'research/**'
       - '.github/workflows/draw-cycle-research.yml'
   workflow_dispatch:
 permissions:
@@ -14,19 +11,26 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
-      - name: Verify cycle models, timed observations, and JS
+      - name: Verify cycle models and archive retrospective
         run: |
-          python -m unittest -q research.test_cycle_compare
+          python -m unittest -q research.test_cycle_compare research.test_official_archives
           python research/draw_cycle.py --model all --main-only > /tmp/cycle_check.csv
           test -s /tmp/cycle_check.csv
-      - name: Package isolated browser comparison
+      - name: Retrieve latest official video index (best effort)
+        continue-on-error: true
+        run: python research/update_official_archives.py --output research/official_archive_catalog.json
+      - name: Package isolated browser comparison and retrospective
         run: |
           mkdir -p cycle-preview
           cp research/cycle_compare.html cycle-preview/index.html
+          cp research/draw_retrospective.html cycle-preview/review.html
           cp research/draw-2157.md cycle-preview/observations.md
+          if test -s research/official_archive_catalog.json; then
+            cp research/official_archive_catalog.json cycle-preview/official_archive_catalog.json
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: draw2157-cycle-comparison-preview
