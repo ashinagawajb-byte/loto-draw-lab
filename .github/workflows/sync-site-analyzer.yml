@@ -3,6 +3,12 @@ on:
   schedule:
     - cron: '40 9 * * 1,4'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'sync_site_analyzer.py'
+      - 'test_site_sync.py'
+      - '.github/workflows/sync-site-analyzer.yml'
 permissions:
   contents: write
 concurrency:
