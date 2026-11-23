@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 from worker import query
+from evaluate_forecasts import score_predictions
 
 def get_data():
     summary = query("""
@@ -105,7 +106,8 @@ def get_data():
             "studies": studies, "runs": runs,
             "global": global_rows[0] if global_rows else None,
             "global_counts": global_counts,
-            "main_progress": main_state, "main_counts": main_counts, "note": "シード値は仮想PRNGの値であり、実機の状態ではありません。過去結果に合わせた値から予測力は導けません。"}
+            "main_progress": main_state, "main_counts": main_counts,
+            "forecast_scores": score_predictions(), "note": "シード値は仮想PRNGの値であり、実機の状態ではありません。過去結果に合わせた値から予測力は導けません。"}
 
 HTML = r"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -150,6 +152,10 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 <div class="panel"><div class="muted">探索済みシード</div><div class="metric" id="scanned">—</div></div>
 <div class="panel"><div class="muted">完全一致した開催回</div><div class="metric" id="finished">—</div></div>
 <div class="panel"><div class="muted">現在の探索範囲に対する進捗</div><div class="metric" id="percent">—</div></div></section>
+<section class="panel"><h2>抽せん前に固定した予測の検証</h2>
+<p class="muted lead">抽せん前にGitHubへ保存した候補だけを対象に、公式結果CSVが登録された後に採点します。数字6個の一致数が主指標。ボーナスは参考値です。</p>
+<div id="forecast-scores" class="muted lead">照合待ち</div>
+</section>
 <section class="panel"><h2>本数字のみの探索（主研究）</h2>
 <p class="muted lead">本数字一致を主指標として、ボーナス一致は内訳として別集計。旧完全一致探索は保持しています。主探索と完全一致探索のシード走査率は別々です。</p>
 <div class="grid">
@@ -352,6 +358,35 @@ const active=D.active.filter(v=>Number(v.game)===game);
 $('active').textContent=active.length?active.map(v=>'第'+v.round+'回：'+n(v.scanned)+' / '+n(v.seed_limit)).join(' ／ '):'現在部分的に処理済みの開催回はありません';
 }
 document.querySelectorAll('[data-game]').forEach(b=>b.addEventListener('click',()=>{game=Number(b.dataset.game);show();if($('seed-input').value)renderSeed($('seed-input').value)}));
+const forecastScores=D.forecast_scores||[];
+const forecastBox=$('forecast-scores');
+if(!forecastScores.length){
+ forecastBox.textContent='まだ照合できる開催結果がありません。第2157回の予想は変更せず保持します。';
+}else{
+ forecastBox.replaceChildren();
+ for(const result of forecastScores.slice(-5).reverse()){
+  const heading=document.createElement('p');
+  heading.textContent='第'+result.round+'回｜当選本数字：'+result.actual_main.join('・')+'｜ボーナス：'+result.actual_bonus;
+  forecastBox.append(heading);
+  const table=document.createElement('table');
+  const header=document.createElement('tr');
+  for(const label of ['予測方式','本数字一致','ボーナス一致']){
+   const th=document.createElement('th');th.textContent=label;header.append(th)
+  }
+  table.append(header);
+  for(const candidate of result.candidates){
+   const tr=document.createElement('tr');
+   for(const value of [candidate.method,candidate.main_hits+'個',candidate.bonus_hit?'一致':'不一致']){
+    const td=document.createElement('td');td.textContent=value;tr.append(td)
+   }
+   table.append(tr)
+  }
+  forecastBox.append(table);
+ }
+ const disclaimer=document.createElement('p');
+ disclaimer.textContent='公平乱数で予想した6数字と実際の本数字6個の平均一致数は36/43≈0.837個。少数回の差では予測力を判断できません。';
+ forecastBox.append(disclaimer);
+}
 const mainState=D.main_progress||null;
 const mainByGame=D.main_counts||{};
 const totalMain=mainState?Number(mainState.cursor):0;
