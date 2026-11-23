@@ -42,9 +42,9 @@ def load_site_predictions(path=ANALYZER_CSV):
             if round_id<1:raise ValueError('invalid round')
             locked=parse_lock(row['locked_at_jst'].strip())
             draw_date=datetime.strptime(row['draw_date'].strip(),'%Y-%m-%d').date()
-            if locked.date()!=draw_date:
-                raise ValueError('forecast must be frozen on the stated draw day')
-            if locked.time()>time(18,30):
+            if locked.date()>draw_date:
+                raise ValueError('forecast locked after the stated draw day')
+            if locked.date()==draw_date and locked.time()>time(18,30):
                 raise ValueError('forecast locked after 18:30 JST protection cutoff')
             model=row['model'].strip()
             generation=row['generation'].strip()
