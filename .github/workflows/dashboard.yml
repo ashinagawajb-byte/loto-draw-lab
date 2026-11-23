@@ -14,6 +14,7 @@ on:
       - 'predictions/**'
       - 'data/loto6.csv'
       - 'simulator/**'
+      - 'test_simulator_cycle.py'
       - '.github/workflows/dashboard.yml'
 permissions:
   contents: read
@@ -38,14 +39,14 @@ jobs:
           CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
         run: |
           python -m compileall -q dashboard.py evaluate_forecasts.py compare_models.py
-          python -m unittest -q test_comparisons.py
+          python -m unittest -q test_comparisons.py test_simulator_cycle.py
           if ! python dashboard.py; then
             echo "::warning title=D1 quota::Could not refresh the dashboard; reusing the last public snapshot so the simulator can deploy."
             mkdir -p site
             curl --fail --location --silent --show-error --retry 3 --output site/index.html https://ashinagawajb-byte.github.io/loto-draw-lab/
           fi
           mkdir -p site/simulator
-          cp simulator/index.html simulator/manifest.webmanifest simulator/sw.js site/simulator/
+          cp simulator/index.html simulator/review.html simulator/manifest.webmanifest simulator/sw.js site/simulator/
           python simulator/make_icons.py site/simulator
           test -s site/simulator/icon-192.png
           test -s site/simulator/icon-512.png
