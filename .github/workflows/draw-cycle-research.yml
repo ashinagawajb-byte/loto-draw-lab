@@ -1,0 +1,34 @@
+name: Draw cycle research validation
+on:
+  push:
+    branches: [research/draw-2157-cycle]
+    paths:
+      - 'research/draw_cycle.py'
+      - 'research/cycle_compare.html'
+      - 'research/test_cycle_compare.py'
+      - 'research/draw-2157.md'
+      - '.github/workflows/draw-cycle-research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify cycle models, timed observations, and JS
+        run: |
+          python -m unittest -q research.test_cycle_compare
+          python research/draw_cycle.py --model all --main-only > /tmp/cycle_check.csv
+          test -s /tmp/cycle_check.csv
+      - name: Package isolated browser comparison
+        run: |
+          mkdir -p cycle-preview
+          cp research/cycle_compare.html cycle-preview/index.html
+          cp research/draw-2157.md cycle-preview/observations.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: draw2157-cycle-comparison-preview
+          path: cycle-preview/
+          retention-days: 14
