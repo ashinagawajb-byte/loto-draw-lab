@@ -30,12 +30,13 @@ def parse_lock(value):
         raise ValueError('locked_at_jst must explicitly be JST (+09:00)')
     return locked
 
-def load_raw_analyzer_files(folder=RAW_EXPORT):
+def load_raw_analyzer_files(folder=None):
     """Read unchanged Japanese Site CSV exports; never manufacture timestamps.
 
     Returning provenance='export_without_lock_timestamp' makes these imported
     results provisional in paired performance statistics.
     """
+    if folder is None:folder=RAW_EXPORT
     portfolios={}
     files=sorted(Path(folder).glob('loto6-*-fixed-5tickets.csv'))
     for path in files:
