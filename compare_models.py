@@ -9,6 +9,7 @@ One row per ticket, exactly five distinct tickets for each (round,model,generati
 """
 import csv
 import json
+import re
 from collections import defaultdict
 from datetime import datetime, time
 from pathlib import Path
@@ -16,6 +17,8 @@ from pathlib import Path
 from evaluate_forecasts import ROOT, score_predictions
 
 ANALYZER_CSV=ROOT/'comparisons'/'analyzer_frozen.csv'
+RAW_EXPORT=ROOT/'comparisons'
+RAW_HEADERS=['回','口','数字1','数字2','数字3','数字4','数字5','数字6']
 HEADERS=['round','draw_date','locked_at_jst','model','generation','ticket',
          'n1','n2','n3','n4','n5','n6']
 
@@ -27,9 +30,55 @@ def parse_lock(value):
         raise ValueError('locked_at_jst must explicitly be JST (+09:00)')
     return locked
 
+def load_raw_analyzer_files(folder=RAW_EXPORT):
+    """Read unchanged Japanese Site CSV exports; never manufacture timestamps.
+
+    Returning provenance='export_without_lock_timestamp' makes these imported
+    results provisional in paired performance statistics.
+    """
+    portfolios={}
+    files=sorted(Path(folder).glob('loto6-*-fixed-5tickets.csv'))
+    for path in files:
+        parsed=re.fullmatch(r'loto6-(\\d+)-fixed-5tickets\\.csv',path.name)
+        if not parsed:continue
+        file_round=int(parsed.group(1))
+        with path.open(encoding='utf-8-sig',newline='') as handle:
+            reader=csv.DictReader(handle)
+            if reader.fieldnames != RAW_HEADERS:
+                raise ValueError(f'{path.name}: unexpected Analyzer export columns: {reader.fieldnames}')
+            entries=[]
+            for row in reader:
+                rid=int(row['回'])
+                ticket=int(row['口'])
+                if rid!=file_round:raise ValueError(f'{path.name}: round differs from filename')
+                if ticket<1 or ticket>5:raise ValueError(f'{path.name}: invalid ticket index')
+                nums=tuple(sorted(int(row[f'数字{i}']) for i in range(1,7)))
+                if len(set(nums))!=6 or not all(1<=v<=43 for v in nums):
+                    raise ValueError(f'{path.name}: invalid six-number ticket')
+                entries.append((ticket,nums))
+        if len(entries)!=5 or {r[0] for r in entries}!={1,2,3,4,5}:
+            raise ValueError(f'{path.name}: expected exactly five tickets')
+        if len({r[1] for r in entries})!=5:
+            raise ValueError(f'{path.name}: duplicate ticket combination')
+        if file_round in portfolios:
+            raise ValueError(f'duplicate raw Analyzer round: {file_round}')
+        portfolios[file_round]=[{
+            'source':'Site Analyzer','model':'固定5口（原本CSV）','generation':'未記載',
+            'locked_at_jst':None,'provenance':'export_without_lock_timestamp',
+            'source_file':path.name,
+            'tickets':[list(nums) for _,nums in sorted(entries)]
+        }]
+    return portfolios
+
 def load_site_predictions(path=ANALYZER_CSV):
     path=Path(path)
+    raw=load_raw_analyzer_files()
     if not path.is_file():
+        if raw:
+            return raw, {'state':'loaded_raw','loaded_rounds':len(raw),
+                'portfolio_count':sum(len(v) for v in raw.values()),
+                'verified_rounds':0,
+                'note':'日本語CSVを原本のまま取込済み。モデル世代と固定日時はCSVにないため未確認。'}
         return {}, {'state':'awaiting_export','loaded_rounds':0,
                     'note':'Site Analyzer の固定予想CSVは未取得。推定した5口は登録しません。'}
     groups=defaultdict(list)
@@ -66,10 +115,16 @@ def load_site_predictions(path=ANALYZER_CSV):
             raise ValueError('inconsistent frozen timestamp/date within same portfolio')
         result.setdefault(round_id,[]).append({
             'source':'Site Analyzer','model':model,'generation':generation,
-            'locked_at_jst':items[0][2],
+            'locked_at_jst':items[0][2], 'provenance':'timestamp_declared',
             'tickets':[list(x[1]) for x in sorted(items,key=lambda x:x[0])]})
+    # Explicit timestamped records supersede raw import for the same round,
+    # never silently mix two potentially different versions of the five tickets.
+    for rid,portfolios in raw.items():
+        if rid not in result:result[rid]=portfolios
     return result,{'state':'loaded','loaded_rounds':len(result),
-                   'portfolio_count':sum(map(len,result.values()))}
+                   'portfolio_count':sum(map(len,result.values())),
+                   'verified_rounds':sum(1 for a in result.values() for p in a
+                       if p['provenance']=='timestamp_declared')}
 
 def classification(ticket,main,bonus):
     hits=len(set(ticket)&set(main))
@@ -109,7 +164,8 @@ def compare():
                 'any_4th_or_better':int(any(0<g<=4 for g in grades)),
                 'any_3rd_or_better':int(any(0<g<=3 for g in grades)),
                 'best_grade':min((g for g in grades if g),default=0),
-                'locked_at_jst':portfolio['locked_at_jst']})
+                'locked_at_jst':portfolio['locked_at_jst'],
+                'provenance':portfolio.get('provenance','unverified')})
         if round_id in by_round:
             forecast=by_round[round_id]
             # Treat five fixed seed candidates as a five-ticket portfolio, and
@@ -131,8 +187,11 @@ def compare():
                                'actual_bonus':bonus,'portfolios':rows})
     complete=[r for r in result if any(x['source']=='Site Analyzer' for x in r['portfolios'])
              and any(x['source']=='LOTO DRAW LAB' for x in r['portfolios'])]
+    verified=[r for r in complete if any(x['source']=='Site Analyzer' and
+        x.get('provenance')=='timestamp_declared' for x in r['portfolios'])]
     return {'site_source':source_info,'scored_rounds':result,
             'paired_rounds':len(complete),
+            'verified_paired_rounds':len(verified),
             'note':'同じ開催回・同じ5口で比較。固定時刻・モデル世代を保持。実抽せんを予測できる証拠ではありません。'}
 
 if __name__=='__main__':
