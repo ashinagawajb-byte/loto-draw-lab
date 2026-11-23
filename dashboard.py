@@ -49,6 +49,31 @@ def get_data():
         global_rows = []
         global_counts = []
         combined_counts = []
+    try:
+        main_rows=query("SELECT cursor,target_hash,stats,updated_at FROM main_progress WHERE id=1")
+        main_state=main_rows[0] if main_rows else None
+        if main_state:
+            main_stats=json.loads(main_state.pop("stats"))
+            main_counts={}
+            for key,value in main_stats.items():
+                game,round_id=key.split(':',1)
+                agg=main_counts.setdefault(game,{'matched_rounds':0,'matching_seeds':0,
+                                                  'bonus_matching_seeds':0,'recent':[]})
+                agg['matched_rounds']+=1
+                agg['matching_seeds']+=int(value['count'])
+                agg['bonus_matching_seeds']+=int(value['bonus_count'])
+                agg['recent'].append({'round':int(round_id),
+                                      'count':int(value['count']),
+                                      'bonus_count':int(value['bonus_count']),
+                                      'min_seed':int(value['min_seed']),
+                                      'mean_seed':round(int(value['sum_seed'])/max(1,int(value['count'])))})
+            for agg in main_counts.values():
+                agg['recent']=sorted(agg['recent'],key=lambda r:r['round'],reverse=True)[:15]
+        else:main_counts={}
+    except RuntimeError as exc:
+        if 'no such table' not in str(exc).lower():raise
+        main_state=None
+        main_counts={}
     active = query("""
       SELECT game, round, scanned, seed_limit, best
       FROM jobs WHERE scanned > 0 AND scanned < seed_limit
@@ -79,7 +104,8 @@ def get_data():
     return {"summary": summary, "completed": completed, "active": active,
             "studies": studies, "runs": runs,
             "global": global_rows[0] if global_rows else None,
-            "global_counts": global_counts, "note": "シード値は仮想PRNGの値であり、実機の状態ではありません。過去結果に合わせた値から予測力は導けません。"}
+            "global_counts": global_counts,
+            "main_progress": main_state, "main_counts": main_counts, "note": "シード値は仮想PRNGの値であり、実機の状態ではありません。過去結果に合わせた値から予測力は導けません。"}
 
 HTML = r"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -124,6 +150,17 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 <div class="panel"><div class="muted">探索済みシード</div><div class="metric" id="scanned">—</div></div>
 <div class="panel"><div class="muted">完全一致した開催回</div><div class="metric" id="finished">—</div></div>
 <div class="panel"><div class="muted">現在の探索範囲に対する進捗</div><div class="metric" id="percent">—</div></div></section>
+<section class="panel"><h2>本数字のみの探索（主研究）</h2>
+<p class="muted lead">本数字一致を主指標として、ボーナス一致は内訳として別集計。旧完全一致探索は保持しています。主探索と完全一致探索のシード走査率は別々です。</p>
+<div class="grid">
+<div><div class="muted lead">本数字のみの探索済みシード</div><div class="metric" id="main-scanned">—</div></div>
+<div><div class="muted lead">全シード空間の探索率</div><div class="metric" id="main-percent">—</div></div>
+<div><div class="muted lead">本数字一致の延べ件数</div><div class="metric" id="main-hits">—</div></div>
+</div>
+<div class="progress"><div id="main-bar" style="width:0%"></div></div>
+<p class="muted lead" id="main-note"></p>
+<div class="scroll"><table><thead><tr><th>開催回</th><th>本数字一致</th><th>うちボーナス一致</th><th>最小シード</th><th>平均シード</th></tr></thead><tbody id="main-table"></tbody></table></div>
+</section>
 <section class="panel"><h2>新方式：全開催回一括照合</h2>
 <p class="muted lead">各シードについてロト6・ロト7の結果を1回ずつ生成し、全開催回を同時照合します。旧方式の探索件数とは別の指標です。</p>
 <div class="grid">
@@ -271,6 +308,7 @@ function renderDeltas(rows){
 }
 function show(){
 document.querySelectorAll('[data-game]').forEach(b=>b.setAttribute('aria-pressed',Number(b.dataset.game)===game?'true':'false'));
+showMain();
 const s=D.summary.find(v=>Number(v.game)===game)||{};
 const scanned=Number(s.scanned||0),planned=Number(s.planned||0);
 const pct=planned?100*scanned/planned:0;
@@ -314,6 +352,32 @@ const active=D.active.filter(v=>Number(v.game)===game);
 $('active').textContent=active.length?active.map(v=>'第'+v.round+'回：'+n(v.scanned)+' / '+n(v.seed_limit)).join(' ／ '):'現在部分的に処理済みの開催回はありません';
 }
 document.querySelectorAll('[data-game]').forEach(b=>b.addEventListener('click',()=>{game=Number(b.dataset.game);show();if($('seed-input').value)renderSeed($('seed-input').value)}));
+const mainState=D.main_progress||null;
+const mainByGame=D.main_counts||{};
+const totalMain=mainState?Number(mainState.cursor):0;
+$('main-scanned').textContent=mainState?n(totalMain):'未開始';
+$('main-percent').textContent=mainState?(totalMain/4294967296*100).toFixed(3)+'%':'—';
+$('main-bar').style.width=Math.min(100,totalMain/4294967296*100)+'%';
+function showMain(){
+ const summary=mainByGame[String(game)]||{matched_rounds:0,matching_seeds:0,bonus_matching_seeds:0,recent:[]};
+ $('main-hits').textContent=n(summary.matching_seeds);
+ $('main-note').textContent=mainState?
+ '本数字一致が見つかった開催回 '+n(summary.matched_rounds)+'回。ボーナスまで一致した延べ件数 '+n(summary.bonus_matching_seeds)+'件。最終更新(UTC)：'+mainState.updated_at+
+ '。全シードを探索した数と一致件数は別です。':
+ '本数字のみの探索チェックポイントを準備中です。';
+ const body=$('main-table');body.replaceChildren();
+ for(const r of summary.recent){
+  const tr=document.createElement('tr');
+  for(const value of [r.round,r.count,r.bonus_count,r.min_seed,r.mean_seed]){
+    const td=document.createElement('td');td.textContent=n(value);tr.append(td)
+  }
+  body.append(tr)
+ }
+ if(!summary.recent.length){
+  const tr=document.createElement('tr'),td=document.createElement('td');
+  td.colSpan=5;td.textContent='本数字一致データの蓄積待ち';tr.append(td);body.append(tr)
+ }
+}
 const globalState=D.global||null;
 const globalCursor=globalState?Number(globalState.cursor):0;
 const globalPercent=100*globalCursor/4294967296;
