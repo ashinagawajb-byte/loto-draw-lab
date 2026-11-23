@@ -2,6 +2,7 @@
 import csv
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from compare_models import load_site_predictions, load_raw_analyzer_files, classification, HEADERS
 
@@ -31,7 +32,8 @@ class AnalyzerComparisonTests(unittest.TestCase):
             with self.assertRaises(ValueError):load_site_predictions(path)
     def test_missing_site_file(self):
         with tempfile.TemporaryDirectory() as folder:
-            found,meta=load_site_predictions(Path(folder)/'absent.csv')
+            with patch('compare_models.RAW_EXPORT',Path(folder)):
+                found,meta=load_site_predictions(Path(folder)/'absent.csv')
             self.assertFalse(found)
             self.assertEqual(meta['state'],'awaiting_export')
     def test_actual_japanese_analyzer_csv(self):
