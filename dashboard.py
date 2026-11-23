@@ -12,11 +12,34 @@ def get_data():
       FROM jobs GROUP BY game ORDER BY game
     """)
     # Only FULL matches are eligible for display, even when a seed window is incomplete.
-    completed = query("""
-      SELECT j.game,j.round,j.scanned,j.seed_limit,j.exact_count,MIN(m.seed) AS seed
-      FROM exact_matches m JOIN jobs j ON j.game=m.game AND j.round=m.round
-      GROUP BY j.game,j.round ORDER BY j.game,CAST(j.round AS INTEGER) DESC LIMIT 800
-    """)
+    # Show a de-duplicated union while leaving old per-round checkpoints intact.
+    try:
+        completed = query("""
+          SELECT j.game,j.round,j.scanned,j.seed_limit,
+                 COUNT(*) AS exact_count,MIN(m.seed) AS seed
+          FROM (
+            SELECT game,round,seed FROM exact_matches
+            UNION
+            SELECT game,round,seed FROM global_exact_matches
+          ) m JOIN jobs j ON j.game=m.game AND j.round=m.round
+          GROUP BY j.game,j.round
+          ORDER BY j.game,CAST(j.round AS INTEGER) DESC LIMIT 800
+        """)
+        global_rows = query("SELECT cursor,target_hash,updated_at FROM global_progress WHERE id=1")
+        global_counts = query("""
+          SELECT game,COUNT(DISTINCT round) AS matched_rounds,COUNT(*) AS exact_seeds
+          FROM global_exact_matches GROUP BY game
+        """)
+    except RuntimeError as exc:
+        if 'no such table' not in str(exc).lower():
+            raise
+        completed = query("""
+          SELECT j.game,j.round,j.scanned,j.seed_limit,j.exact_count,MIN(m.seed) AS seed
+          FROM exact_matches m JOIN jobs j ON j.game=m.game AND j.round=m.round
+          GROUP BY j.game,j.round ORDER BY j.game,CAST(j.round AS INTEGER) DESC LIMIT 800
+        """)
+        global_rows = []
+        global_counts = []
     active = query("""
       SELECT game, round, scanned, seed_limit, best
       FROM jobs WHERE scanned > 0 AND scanned < seed_limit
@@ -39,7 +62,9 @@ def get_data():
     for row in studies:
         row["summary"] = json.loads(row["summary"])
     return {"summary": summary, "completed": completed, "active": active,
-            "studies": studies, "runs": runs, "note": "シード値は仮想PRNGの値であり、実機の状態ではありません。過去結果に合わせた値から予測力は導けません。"}
+            "studies": studies, "runs": runs,
+            "global": global_rows[0] if global_rows else None,
+            "global_counts": global_counts, "note": "シード値は仮想PRNGの値であり、実機の状態ではありません。過去結果に合わせた値から予測力は導けません。"}
 
 HTML = r"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -84,6 +109,16 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 <div class="panel"><div class="muted">探索済みシード</div><div class="metric" id="scanned">—</div></div>
 <div class="panel"><div class="muted">完全一致した開催回</div><div class="metric" id="finished">—</div></div>
 <div class="panel"><div class="muted">現在の探索範囲に対する進捗</div><div class="metric" id="percent">—</div></div></section>
+<section class="panel"><h2>新方式：全開催回一括照合</h2>
+<p class="muted lead">各シードについてロト6・ロト7の結果を1回ずつ生成し、全開催回を同時照合します。旧方式の探索件数とは別の指標です。</p>
+<div class="grid">
+<div><div class="muted lead">重複のない探索済みシード</div><div class="metric" id="global-seeds">—</div></div>
+<div><div class="muted lead">32ビット全空間の探索率</div><div class="metric" id="global-percent">—</div></div>
+<div><div class="muted lead">新方式の完全一致シード</div><div class="metric" id="global-matches">—</div></div>
+</div>
+<div class="progress"><div id="global-bar" style="width:0%"></div></div>
+<p class="muted lead" id="global-note"></p>
+</section>
 <section class="panel"><h2>クラウド探索の稼働状況</h2>
 <div class="grid">
 <div><div class="muted lead">直近の探索件数（両ゲーム合計）</div><div class="metric" id="last-scanned">—</div></div>
@@ -264,6 +299,16 @@ const active=D.active.filter(v=>Number(v.game)===game);
 $('active').textContent=active.length?active.map(v=>'第'+v.round+'回：'+n(v.scanned)+' / '+n(v.seed_limit)).join(' ／ '):'現在部分的に処理済みの開催回はありません';
 }
 document.querySelectorAll('[data-game]').forEach(b=>b.addEventListener('click',()=>{game=Number(b.dataset.game);show();if($('seed-input').value)renderSeed($('seed-input').value)}));
+const globalState=D.global||null;
+const globalCursor=globalState?Number(globalState.cursor):0;
+const globalPercent=100*globalCursor/4294967296;
+$('global-seeds').textContent=globalState?n(globalCursor):'未開始';
+$('global-percent').textContent=globalState?globalPercent.toFixed(3)+'%':'—';
+$('global-matches').textContent=n((D.global_counts||[]).reduce((a,v)=>a+Number(v.exact_seeds||0),0));
+$('global-bar').style.width=Math.min(100,globalPercent)+'%';
+$('global-note').textContent=globalState?
+  '全4,294,967,296シードのうち '+n(globalCursor)+'件を走査。履歴CSV更新時は再照合のため新方式の進捗を0から開始し、発見済み一致は保持します。':
+  '新しい一括探索エンジンの初回チェックポイントを待っています。';
 const runs=D.runs||[];
 const latest=runs[0];
 $('last-scanned').textContent=latest?n(latest.scanned):'データなし';
