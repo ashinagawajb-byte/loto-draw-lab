@@ -39,7 +39,7 @@ def load_raw_analyzer_files(folder=RAW_EXPORT):
     portfolios={}
     files=sorted(Path(folder).glob('loto6-*-fixed-5tickets.csv'))
     for path in files:
-        parsed=re.fullmatch(r'loto6-(\\d+)-fixed-5tickets\\.csv',path.name)
+        parsed=re.fullmatch(r'loto6-(\d+)-fixed-5tickets\.csv',path.name)
         if not parsed:continue
         file_round=int(parsed.group(1))
         with path.open(encoding='utf-8-sig',newline='') as handle:
