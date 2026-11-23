@@ -27,6 +27,18 @@ jobs:
           mkdir -p cycle-preview
           cp research/cycle_compare.html cycle-preview/index.html
           cp research/draw_retrospective.html cycle-preview/review.html
+          if test -s research/official_archive_catalog.json; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("cycle-preview/review.html")
+          catalog=json.loads(Path("research/official_archive_catalog.json").read_text())["draws"]
+          data=json.dumps(catalog,ensure_ascii=False).replace("<","\\u003c")
+          html=p.read_text(encoding="utf-8")
+          assert "const EMBEDDED_CATALOG=[];" in html
+          p.write_text(html.replace("const EMBEDDED_CATALOG=[];","const EMBEDDED_CATALOG="+data+";"),encoding="utf-8")
+          PY
+          fi
           cp research/draw-2157.md cycle-preview/observations.md
           if test -s research/official_archive_catalog.json; then
             cp research/official_archive_catalog.json cycle-preview/official_archive_catalog.json
