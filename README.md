@@ -72,3 +72,18 @@ g++ -O3 -std=c++17 -Wall -Wextra seed_scan.cpp -o seed_scan
 g++ -O3 -std=c++17 -Wall -Wextra global_scan.cpp -o global_scan
 python -m unittest -q test_worker.py test_native.py test_global.py
 ```
+
+## Main-number-only parallel research (Nov 2026)
+
+The scheduled job now runs an **independent main-only analysis** after the original full main+bonus search. The native scanner mode `global_scan START COUNT TARGETS.tsv main` compares the main-number set only and marks whether the bonus group also matches. The original full-exact mode and stored legacy history are unchanged.
+
+`main_progress` stores a separate atomic cursor, immutable source CSV fingerprint, and compact per-round aggregate JSON, rather than one D1 row per main-number match. For each draw it saves `count`, `bonus_count`, `min_seed`, `max_seed` and `sum_seed` (for a mean). When CSV history changes, the previous summary is archived in `main_progress_archive` and main-only rescan starts from zero; previously found full-exact matches are never erased. The workflow caps the additional scan to `MAIN_RUN_SECONDS=75`, uses `MAIN_BATCH_SIZE=1000000`, and shares the current D1 soft usage budget. The main-only scan *can* be behind the full-match scan; dashboard shows separate cursors, not a misleading shared percentage.
+
+`evaluate_forecasts.py` scores **pre-saved** `predictions/loto6_*.json` files once the actual round exists in `data/loto6.csv`. Metrics are six-main-number hits, bonus-match indicator and random-reference expected main hits (36/43). The first protected forecast is round 2157; it must not be re-selected or edited after the outcome. Neither more matched historical seeds nor a closer integer seed is by itself evidence of future predictive power.
+
+To test all scanner variants locally:
+```bash
+g++ -O3 -std=c++17 -Wall -Wextra seed_scan.cpp -o seed_scan
+g++ -O3 -std=c++17 -Wall -Wextra global_scan.cpp -o global_scan
+python -m unittest -q test_worker.py test_native.py test_global.py test_main.py
+```
