@@ -1,0 +1,45 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LOTO DRAW LAB｜抽せん後レビュー</title>
+<style>:root{font-family:system-ui,"Noto Sans JP",sans-serif;color-scheme:dark;background:#0a1220;color:#eef3fa}*{box-sizing:border-box}body{margin:0}header,main{max-width:1050px;padding:18px;margin:auto}h1{font-size:24px}h2{font-size:18px}.muted,small{color:#afc1d5}p{line-height:1.7}.panel{background:#15243a;padding:17px;border-radius:14px;border:1px solid #344b68;margin:12px 0}label{display:block;font-size:13px;color:#c8d9eb}input,select,textarea{font:inherit;color:#f2f5fb;background:#0b182c;border:1px solid #4b6380;border-radius:7px;padding:9px;width:100%;margin:4px 0 11px}button,.btn{background:#ffbd6c;color:#132032;border:0;border-radius:8px;padding:10px 13px;font:inherit;font-weight:700;cursor:pointer;display:inline-block;text-decoration:none}button.secondary{background:#304762;color:#edf5ff}a{color:#96c9ff}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.line{display:flex;gap:9px;flex-wrap:wrap;align-items:center}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.scroll{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;border-bottom:1px solid #38516a;text-align:left}pre{white-space:pre-wrap;overflow-wrap:anywhere}.note{border-left:3px solid #e6ad5d;padding:10px;background:#282436}@media(max-width:720px){.grid,.row{grid-template-columns:1fr}header,main{padding:12px}}</style></head><body>
+<header><h1>◉ LOTO DRAW LAB <span class="muted">/ 抽せん後レビュー</span></h1><p>公式バックナンバーから映像を確認し、抽出順序・攪拌状態・5口の照合を回号ごとに記録する研究ノート。</p></header>
+<main>
+<section class="panel note">**映像の自動認識ではありません。** バックナンバーにあるのは直近8回のダイジェスト映像です。映像のURLは公式ページを参照し、抽出時刻・動作・結果は人が映像や公式当せん結果で確認したものだけを記録します。動画掲載終了後もレビュー記録は残せます。</section>
+<section class="panel"><h2>公式バックナンバー</h2><p><a id="archive" href="https://www.takarakuji-dream.jp/takarakuji/backnumber" target="_blank" rel="noopener noreferrer">公式バックナンバーを開く</a> · <a href="https://www.takarakuji-dream.jp/takarakuji/" target="_blank" rel="noopener noreferrer">公式ライブ中継</a></p>
+<div class="line"><label style="min-width:170px">ゲーム<select id="game"><option value="loto6">ロト6</option><option value="loto7">ロト7</option></select></label><label style="min-width:150px">回号<input id="draw" type="number" min="1" value="2157"></label><label style="min-width:170px">抽せん日<input id="date" type="date" value="2026-11-23"></label></div>
+<div class="line"><button id="load">保存済みレビューを開く</button><button id="reset" class="secondary">入力欄をクリア</button><label>公式目録JSONを読み込む<input id="catalogFile" type="file" accept=".json,application/json"></label></div>
+<div id="catalogStatus" class="muted">動画リンクは公式ページから確認できます。最新の自動取得目録があれば読み込んでください。</div>
+<div class="scroll"><table><thead><tr><th>回号</th><th>抽せん日</th><th>映像</th><th>レビュー</th></tr></thead><tbody id="archiveRows"></tbody></table></div></section>
+<section class="panel"><h2>抽せん後レビュー入力</h2>
+<div class="grid">
+<label>セット球（確定している場合のみ）<input id="setball" placeholder="未確認"></label>
+<label>本数字（6または7個、空白区切り）<input id="main" placeholder="例：38 13 34 22 39 20"></label>
+<label>ボーナス（確認できた場合のみ）<input id="bonus" placeholder="例：33"></label>
+</div>
+<div class="row"><label>抽出順序・秒数・受け部保持（根拠を記す）<textarea id="timings" rows="6" placeholder="1球目 38: 2151.8秒 / 保持 2.5秒 ..."></textarea></label>
+<label>攪拌機構・残球の動作・未測定項目<textarea id="mechanics" rows="6" placeholder="排出直後も残球は周回。駆動軸の停止・反転は未判定 ..."></textarea></label></div>
+<div class="row"><label>モデルA/B/C/旧方式との照合<textarea id="model" rows="4" placeholder="一致した観察・矛盾した観察・比較不能な点を区別"></textarea></label>
+<label>固定予想5口との照合（予想データを変更しない）<textarea id="tickets" rows="4" placeholder="当選結果と予想5口の各一致数、未照合なら未照合"></textarea></label></div>
+<label>参照元URL / 時刻 / 留意点<textarea id="evidence" rows="3" placeholder="公式アーカイブ、結果ページ、確認時刻など"></textarea></label>
+<div class="line"><button id="save">この回号のレビューを保存</button><button id="download" class="secondary">全レビューをJSONで出力</button><label>レビューJSONを取り込む<input type="file" id="restore" accept=".json,application/json"></label></div>
+<p id="message" class="muted">ブラウザ内の保存領域に記録します。長期保管にはJSONの書き出しも利用してください。</p></section>
+<section class="panel"><h2>保存した回顧</h2><div id="saved"></div></section>
+<section class="panel"><h2>研究上の取り扱い</h2><p>動画の公開期限と抽出映像の取得可否は別です。公式ページの「視聴する」リンクがなくなっても、観察記録を上書き・削除しません。実測値とモデル仮定値は混同せず、モデルCで未測定のRPMを補完しません。新しい回号については、抽せんが終了して公式データを確認するまで結果欄を空欄に保ってください。</p></section>
+</main><script>
+"use strict";const $=id=>document.getElementById(id);
+const FIELDS=["setball","main","bonus","timings","mechanics","model","tickets","evidence"],KEY="loto-draw-lab-retrospectives-v1";let catalog=[];
+function safeRead(){try{let o=JSON.parse(localStorage.getItem(KEY)||"{}");return o&&typeof o==="object"&&!Array.isArray(o)?o:{};}catch{return {};}}
+function safeWrite(o){localStorage.setItem(KEY,JSON.stringify(o));}
+function key(){return $("game").value+"-"+$("draw").value;}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function validRow(r){return r&&["loto6","loto7"].includes(r.game)&&Number.isInteger(r.draw)&&r.draw>0&&typeof r.date==="string"&&/^\d{4}年\d{1,2}月\d{1,2}日$/.test(r.date)&&typeof r.video_url==="string"&&/^https:\/\/(api01-platform\.stream\.co\.jp|www\.takarakuji-dream\.jp)\//.test(r.video_url);}
+function selectRow(r){$("game").value=r.game;$("draw").value=r.draw;$("date").value=r.date.replace(/年|月/g,"-").replace(/日/,"").replace(/-(\d)(?=-|$)/g,"-0$1");openCurrent();}
+function openCurrent(){const v=safeRead()[key()];FIELDS.forEach(f=>$(f).value=v?.[f]||"");if(v?.date)$("date").value=v.date;$("message").textContent=v?"保存済みのレビューを読み込んだよ。":"未保存の回号です。公式映像を確認して記録できます。";render();}
+function render(){const data=safeRead();$("archiveRows").innerHTML=catalog.filter(r=>r.game===$("game").value).sort((a,b)=>b.draw-a.draw).map(r=>'<tr><td>第'+r.draw+'回</td><td>'+esc(r.date)+'</td><td><a href="'+esc(r.video_url)+'" target="_blank" rel="noopener noreferrer">公式映像</a></td><td>'+(data[r.game+"-"+r.draw]?"記録あり":"未記録")+'</td></tr>').join("");$("saved").innerHTML=Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0])).map(([k,v])=>'<p><strong>'+esc(k)+'</strong> · '+esc(v.date||"日付未設定")+' · '+esc(v.updated||"")+"　"+esc((v.mechanics||"").slice(0,90))+'</p>').join("")||'<p class="muted">まだ保存したレビューはありません。</p>';}
+function download(name,content){const u=URL.createObjectURL(new Blob([JSON.stringify(content,null,2)],{type:"application/json"}));const a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);}
+$("save").onclick=()=>{const n=Number($("draw").value);if(!Number.isInteger(n)||n<1){$("message").textContent="正しい回号を入力してね。";return;}let d=safeRead();const previous=d[key()]||{};const entry={game:$("game").value,draw:n,date:$("date").value,updated:new Date().toISOString()};FIELDS.forEach(f=>entry[f]=$(f).value);d[key()]=entry;try{safeWrite(d);$("message").textContent="保存したよ。長期保管にはJSON出力も利用してね。";render();}catch(e){$("message").textContent="保存できませんでした："+e.message;}};
+$("load").onclick=openCurrent;$("reset").onclick=()=>{FIELDS.forEach(f=>$(f).value="");$("message").textContent="入力欄をクリアしました。保存済み記録は削除していません。";};
+$("download").onclick=()=>download("draw_retro_reviews.json",{schema:1,source:"user-reviewed",reviews:safeRead()});
+$("catalogFile").onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());if(!Array.isArray(j.draws))throw Error("目録形式ではありません");catalog=j.draws.filter(validRow);$("catalogStatus").textContent="公式目録を読み込みました："+catalog.length+"件。取得日時："+(j.retrieved_at||"不明");render();}catch(err){$("catalogStatus").textContent="読み込み失敗："+err.message;}};
+$("restore").onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());if(j.schema!==1||!j.reviews||typeof j.reviews!=="object")throw Error("レビュー形式ではありません");const old=safeRead();let count=0;for(const [k,v] of Object.entries(j.reviews)){if(!/^(loto6|loto7)-\d+$/.test(k)||!v||typeof v!=="object")continue;if(old[k])continue;old[k]=v;count++;}safeWrite(old);$("message").textContent=count+"件の未登録レビューを取り込みました（既存記録を保護）。";openCurrent();}catch(err){$("message").textContent="取り込み失敗："+err.message;}};
+$("game").onchange=render;
+openCurrent();
+</script></body></html>
