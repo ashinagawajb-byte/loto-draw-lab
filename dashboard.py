@@ -368,10 +368,11 @@ document.querySelectorAll('[data-game]').forEach(b=>b.addEventListener('click',(
 const siteComparison=D.site_comparison||{};
 const siteStatus=siteComparison.site_source||{};
 const paired=Number(siteComparison.paired_rounds||0);
-$('site-comparison-status').textContent=(siteStatus.state==='loaded'
- ?'Site Analyzer：取込済み '+(siteStatus.loaded_rounds||0)+'開催回・'+(siteStatus.portfolio_count||0)+'組。'
+$('site-comparison-status').textContent=(siteStatus.state==='loaded'||siteStatus.state==='loaded_raw'
+ ?'Site Analyzer：取込済み '+(siteStatus.loaded_rounds||0)+'開催回・'+(siteStatus.portfolio_count||0)+'組。'+
+ (siteStatus.state==='loaded_raw'?'原本CSVに固定日時・世代なし（証跡未確認）。':'')
  :'Site Analyzer：予想記録が未取得。')+
- ' 両方式が同じ開催回で採点できた回数 '+paired+'回。比較は5口同士で行います。';
+ ' 同一回で採点できた回数 '+paired+'回（うち日時付き記録 '+Number(siteComparison.verified_paired_rounds||0)+'回）。比較は5口同士で行います。';
 const siteBody=$('site-comparison-table');siteBody.replaceChildren();
 for(const draw of (siteComparison.scored_rounds||[]).slice(-12).reverse()){
  for(const p of draw.portfolios){
