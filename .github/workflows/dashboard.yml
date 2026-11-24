@@ -44,9 +44,10 @@ jobs:
             echo "::warning title=D1 quota::Could not refresh the dashboard; reusing the last public snapshot so the simulator can deploy."
             mkdir -p site
             curl --fail --location --silent --show-error --retry 3 --output site/index.html https://ashinagawajb-byte.github.io/loto-draw-lab/
+            python -c 'from dashboard import attach_analyzer_result; attach_analyzer_result("site/index.html")'
           fi
           mkdir -p site/simulator
-          cp simulator/index.html simulator/review.html simulator/manifest.webmanifest simulator/sw.js site/simulator/
+          cp simulator/index.html simulator/review.html simulator/manifest.webmanifest simulator/sw.js simulator/analyzer-result.js site/simulator/
           python simulator/make_icons.py site/simulator
           test -s site/simulator/icon-192.png
           test -s site/simulator/icon-512.png

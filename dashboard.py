@@ -1,5 +1,6 @@
 """Build a read-only static dashboard from Cloudflare D1 without exposing credentials."""
 import json
+import shutil
 from pathlib import Path
 from worker import query
 from evaluate_forecasts import score_predictions
@@ -464,6 +465,30 @@ $('stamp').textContent='データ取得時刻（UTC）: '+D.generated_at;
 show();
 </script></body></html>"""
 
+def attach_analyzer_result(page):
+    """Install the receiver even when publishing a previously generated snapshot."""
+    page = Path(page)
+    html = page.read_text(encoding="utf-8")
+    if 'id="receivedAnalyzerResult"' not in html:
+        card = """
+<section id="receivedAnalyzerResult" class="panel" hidden>
+<h2>Analyzerから受け取った抽せん結果</h2>
+<p id="receivedAnalyzerStatus" role="status"></p>
+<div id="receivedAnalyzerDetails" hidden>
+<p>本数字 <strong id="receivedAnalyzerMain"></strong></p>
+<p>ボーナス <strong id="receivedAnalyzerBonus"></strong></p>
+<a id="receivedAnalyzerNext" href="./simulator/">この結果をDRAWシミュレーターで開く</a>
+</div>
+</section>
+"""
+        if "</header>" not in html or "</head>" not in html:
+            raise ValueError("Dashboard header is missing")
+        html = html.replace("</header>", "</header>" + card, 1)
+        html = html.replace("</head>", '<script src="./analyzer-result.js" defer></script></head>', 1)
+        page.write_text(html, encoding="utf-8")
+    receiver = Path(__file__).resolve().parent / "simulator" / "analyzer-result.js"
+    shutil.copyfile(receiver, page.with_name(receiver.name))
+
 def main():
     from datetime import datetime,timezone
     data=get_data()
@@ -472,6 +497,7 @@ def main():
     out=Path("site/index.html")
     out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(HTML.replace("__DATA__",encoded),encoding="utf-8")
+    attach_analyzer_result(out)
     print("Dashboard generated:",out,"size",out.stat().st_size,
           "bytes; completed rows",len(data["completed"]))
 

@@ -1,5 +1,5 @@
-const CACHE='loto-draw-lab-simulator-v17-analyzer-result';
-const SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='loto-draw-lab-simulator-v17-analyzer-dashboard';
+const SHELL=['./','./index.html','./analyzer-result.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
 });

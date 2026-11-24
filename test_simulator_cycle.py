@@ -1,8 +1,11 @@
 """Protect DRAW LAB production cycle controls and official review page."""
 import re
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
+
+from dashboard import attach_analyzer_result
 
 ROOT=Path(__file__).resolve().parent
 PAGE=ROOT/"simulator"/"index.html"
@@ -53,6 +56,20 @@ assert.equal(gateCrossing(point(1.0,-.04),point(1.0,.12),1),null);
 assert.equal(gateCrossing(point(2.1,-.04,-.5),point(2.1,.12,-.5),1),null);
 """
         subprocess.run(["node"], input=gate+tests, text=True, check=True)
+
+    def test_dashboard_snapshot_keeps_the_analyzer_receiver(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            page = Path(tmp) / "index.html"
+            page.write_text("<html><head></head><body><header>Research</header></body></html>")
+            attach_analyzer_result(page)
+            attach_analyzer_result(page)
+            html = page.read_text(encoding="utf-8")
+            self.assertEqual(html.count('id="receivedAnalyzerResult"'), 1)
+            self.assertEqual(html.count('src="./analyzer-result.js"'), 1)
+            self.assertIn("Research", html)
+            receiver = page.with_name("analyzer-result.js")
+            self.assertEqual(receiver.read_bytes(), PAGE.with_name(receiver.name).read_bytes())
+            subprocess.run(["node", "--check", str(receiver)], check=True)
 
     def test_review_and_simulator_javascript_syntax(self):
         s=PAGE.read_text(encoding="utf-8")
