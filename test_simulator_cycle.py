@@ -36,6 +36,24 @@ assert.throws(()=>parseAnalyzerCSV(csv.replace(',10,11,12',',10,10,12')));
 """
         subprocess.run(["node"], input=parser+rotation+tests, text=True, check=True)
 
+    def test_outer_gate_captures_only_forward_crossings_at_outer_rim(self):
+        page = PAGE.read_text(encoding="utf-8")
+        self.assertIn('<option value="gate-v1">', page)
+        gate = page[page.index("function gateCrossing("):page.index("function showGateLayout(")]
+        tests = """
+const assert = require('node:assert/strict');
+const PALLET_SAFE_RADIUS = 2.14;
+const point = (x,z,y=-1.60) => ({x,y,z});
+assert.equal(gateCrossing(point(2.1,-.04),point(2.1,.12),1),.25);
+assert.equal(gateCrossing(point(-2.1,-.04),point(-2.1,.12),-1),.25);
+assert.equal(gateCrossing(point(2.1,-.04),point(2.1,.12),-1),null);
+assert.equal(gateCrossing(point(2.1,.12),point(2.1,-.04),1),null);
+assert.equal(gateCrossing(point(2.1,-.20),point(2.1,-.04),1),null);
+assert.equal(gateCrossing(point(1.0,-.04),point(1.0,.12),1),null);
+assert.equal(gateCrossing(point(2.1,-.04,-.5),point(2.1,.12,-.5),1),null);
+"""
+        subprocess.run(["node"], input=gate+tests, text=True, check=True)
+
     def test_review_and_simulator_javascript_syntax(self):
         s=PAGE.read_text(encoding="utf-8")
         # Main app's JS is an ES module; use input-type=module for node syntax.

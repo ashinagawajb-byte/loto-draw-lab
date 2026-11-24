@@ -79,8 +79,13 @@ function openSimulationReview(){
   "抽出順の回転: "+directions,
  ];
  if(p){
+  summary.push("球の取り出し方: "+(p.captureMode==="gate-v1"?"外周ゲート（試験モデル）":"従来の近接球方式"));
   summary.push("回転方式: "+(p.rotationMode==="continuous"?"連続回転":"交互回転")+
    " / パレット: "+p.palletRpm+" rpm / 攪拌: "+p.mixTime+"秒 / 球: "+p.mass+"g / 反発係数: "+p.bounce);
+ }
+ if(run.gateEvents?.length){
+  summary.push("外周通過 → ガイド移動開始（モデル時刻・秒）: "+run.gateEvents.map(e=>
+   e.ball+"番 "+(e.captureTick/60).toFixed(2)+" → "+(e.guideTick/60).toFixed(2)).join("、"));
  }
  $("simulationSummary").textContent=summary.join(" ｜ ");
  $("simulationPrompt").value=[

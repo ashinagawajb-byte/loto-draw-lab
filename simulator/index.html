@@ -6,8 +6,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="application-name" content="LOTO DRAW LAB 3D"><style>
 :root{color-scheme:dark;font-family:system-ui,'Noto Sans JP',sans-serif;background:#0b1220;color:#e8edf7}*{box-sizing:border-box}body{margin:0}header{padding:20px 16px;border-bottom:1px solid #29364a;background:#121e31}h1{font-size:22px;margin:0;color:#ffad4d}header .install-panel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}header .install-panel button{padding:8px 12px;font-size:13px}header p{color:#aab9cb;margin:6px 0 0;font-size:13px}main{max-width:1040px;margin:auto;padding:16px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(290px,1fr);gap:16px}.panel{background:#142237;border:1px solid #2c3d53;border-radius:15px;padding:16px;min-width:0}h2{font-size:16px;margin:0 0 13px}label{display:block;color:#c4d1e1;font-size:13px;margin:8px 0 5px}select,input,button{font:inherit}select,input[type=number]{background:#0b1628;color:white;border:1px solid #3b5069;border-radius:8px;padding:10px;width:100%}button{background:#f49a2e;color:#1c1a16;border:0;border-radius:9px;padding:11px 15px;font-weight:700;cursor:pointer}button.secondary{background:#263d57;color:#e6efff}button:disabled{opacity:.45;cursor:not-allowed}.buttons{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.buttons button{flex:1;min-width:110px}canvas{display:block;width:100%;height:auto;aspect-ratio:1.55;background:radial-gradient(circle at 45% 35%,#253b57,#08101e);border-radius:12px}.balls{display:flex;gap:6px;flex-wrap:wrap;min-height:44px;margin:12px 0}.ball{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;width:39px;height:39px;background:linear-gradient(140deg,#ffcb67,#e8860a);color:#1c1b1a;font-weight:800;box-shadow:inset -3px -4px 8px #b76620}.bonus{background:linear-gradient(140deg,#9fdaff,#3778d0);color:#091a34}.muted{font-size:12px;color:#9eb0c4}.grid{display:grid;grid-template-columns:repeat(10,1fr);gap:5px}.num{padding:7px 0;border-radius:7px;background:#243a53;color:#f0f4fa;font-size:12px;border:1px solid #39516a}.num.active{background:#e79a35;color:#121821}.ticket{padding:9px 0;border-bottom:1px solid #31445a;font-size:13px}.row{display:flex;align-items:center;justify-content:space-between;gap:10px}.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.stat>div{background:#20334b;padding:10px;border-radius:9px;text-align:center}.stat strong{display:block;font-size:18px;color:#ffb65a}.history{max-height:250px;overflow:auto;font-size:12px}.history>div{padding:8px 0;border-bottom:1px solid #2b4057}.full{grid-column:1/-1}.notice{font-size:12px;color:#a6b8cc;line-height:1.6}#status{min-height:20px;color:#ffbd72;font-size:13px}@media(max-width:730px){main{display:block}.panel{margin-bottom:14px}.grid{grid-template-columns:repeat(9,1fr)}}
-.research{background:#101d30;border:1px solid #344a64;padding:12px;border-radius:12px;margin:12px 0}.params{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px}.params input{width:100%;accent-color:#f49a2e}.params label{font-size:12px}.research output{color:#ffbc70;font-weight:bold}@media(max-width:480px){.params{grid-template-columns:1fr}}#scene{height:440px;position:relative;border-radius:12px;overflow:hidden;background:radial-gradient(circle at 45% 35%,#253b57,#08101e);touch-action:none}#scene canvas{width:100%;height:100%;display:block;aspect-ratio:auto}#scene .fallback{padding:25px;color:#ffc37b} @media(max-width:730px){#scene{height:340px}}</style></head><body><header><h1>◉ LOTO DRAW LAB <span style="font-size:12px;color:#9cb0c7">Prototype 1.4 · 交互回転</span></h1><p>Three.js 3D × Rapier物理演算 × 上部待機→落下→パレット遠心攪拌・抽出方式切替 | ロト6・ロト7</p><div class="install-panel"><button id="installApp" type="button" style="display:none">Androidにインストール</button><span id="installTip" style="color:#aab9cb;font-size:12px">Chromeのメニュー「︙」→「アプリをインストール」から追加できます</span></div></header><main>
-<section class="panel"><h2>抽選機</h2><div class="row"><div style="flex:1"><label for="game">ゲーム</label><select id="game"><option value="6">ロト6（1～43）</option><option value="7">ロト7（1～37）</option></select></div><div style="flex:1"><label for="mode">抽選方式</label><select id="mode"><option value="physics">物理抽選（近似）</option><option value="random">統計抽選（公平乱数）</option></select></div></div><label for="setball">セット球ラベル（物理パラメータは共通）</label><select id="setball"><option>指定なし</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option><option>F</option><option>G</option><option>H</option><option>I</option><option>J</option></select><div class="research"><h2>抽出サイクル方式（第2157回の映像観察を参考）</h2><label for="rotationMode">回転方向の仮説</label><select id="rotationMode"><option value="legacy" selected>交互回転：1球ごとに回転方向を反転</option><option value="continuous">A：同方向の連続回転</option></select><p class="notice">第2157回映像では残球の周回継続を確認。ただし駆動軸の停止・回転方向は未測定。交互回転・連続回転ともシミュレーション仮説です。B（停止・再加速）とC（映像の観察イベント）は<a href="https://github.com/ashinagawajb-byte/loto-draw-lab/blob/research/draw-2157-cycle/research/cycle_compare.html" target="_blank" rel="noopener noreferrer">独立比較ラボ</a>で扱います。<a href="./review.html">抽せん後レビュー</a> ／ <a href="https://www.takarakuji-dream.jp/takarakuji/backnumber" target="_blank" rel="noopener noreferrer">公式バックナンバー</a></p></div><p id="directionReadout" class="notice" aria-live="polite">回転待機</p><div id="scene" role="img" aria-label="3D抽選機。ドラッグで回転、ホイールで拡大縮小"></div><div class="research"><h2>物理研究パラメータ</h2><div class="params"><label>上部攪拌（使用しません）<output id="rpmVal">0</output> <input id="rpm" type="range" min="0" max="0" step="1" value="0" disabled></label><label>球の質量 <output id="massVal">14.09</output> g<input id="mass" type="range" min="13.95" max="14.23" step="0.01" value="14.09"></label><label>パレット回転数 <output id="palletRpmVal">90</output> rpm<input id="palletRpm" type="range" min="60" max="120" step="1" value="90"></label><label>パレット初期攪拌時間 <output id="mixTimeVal">8</output> 秒<input id="mixTime" type="range" min="4" max="12" step="1" value="8"></label><label>反発係数 <output id="bounceVal">0.70</output><input id="bounce" type="range" min="0.2" max="0.95" step="0.05" value="0.7"></label><label>パレットとの摩擦伝達 <output id="agitationVal">1.0</output> 倍<input id="agitation" type="range" min="0.2" max="2" step="0.1" value="1"></label></div><div class="muted">球規格：直径50±0.5mm／14.09g（13.95〜14.23g）。表示上の球材質：高密度ポリスチレン＋ウレタン塗装を模した外観。モデル上の反発・摩擦は近似値。上部チャンバーは待機・供給用として扱い、攪拌の駆動源は下部パレットのみです。球は上部から中心開口部を通ってパレットへ落下し、縦軸90 RPMの回転で水平方向へ移動する近似です。パレット直径928mm。遠心効果・摩擦伝達・排出口は研究用の近似です。回転方向は下の仮説切替に従います。</div><div class="row"><span class="muted">球の平均速度</span><strong id="speedVal">—</strong></div></div><div class="research"><h2>抽選サイクル・固定配置実験</h2><div class="params"><label>初期配置シード<input id="seed" type="number" value="20261122" step="1"></label><label>パレット抽出間隔（秒）<input id="forwardTime" type="range" min="0.3" max="3" step="0.1" value="1.2"><output id="forwardTimeVal">1.2</output></label><label>抽出後の再攪拌時間（秒）<input id="reverseTime" type="range" min="0.3" max="3" step="0.1" value="1.0"><output id="reverseTimeVal">1.0</output></label><label>高速研究・比較試行回数（各方式）<input id="compareCount" type="number" min="1" max="1000" value="10"></label></div><label><input id="fixedSeed" type="checkbox" checked> 毎回同じ初期配置から開始（再現性テスト）</label><div class="buttons"><button id="compare">物理・公平乱数を比較</button><button class="secondary" id="stopCompare" disabled>停止</button><button class="secondary" id="compareCsv">比較CSV出力</button></div><div id="compareStatus" class="muted">未実行</div><progress id="compareProgress" max="100" value="0" style="width:100%;height:12px"></progress><div id="testResult" class="muted"></div><div id="compareResult" style="overflow-x:auto"></div><p class="muted">本数字の出現率＝各数字が本数字に含まれた回数÷試行回数。比較中の物理演算は固定60Hzで進め、描画FPSから切り離します。同一シード・同一条件の繰り返しは再現性検証であり、独立した標本ではありません。高速研究は実時間待機を省略しますが、物理計算自体は省略しません。</p></div><div class="research" id="seedLab"><h2>v0.7 実際の当選数字からシード探索</h2><p class="muted">本数字をカンマまたは空白で入力。ボーナス数字は別欄。入力数字と仮想抽選が一致するシードを指定範囲で探索します。これは仮想モデルの逆探索であり、実機の乱数シードを特定するものではありません。</p><div class="params"><label>本数字<input id="targetMain" type="text" placeholder="例: 1 8 15 22 29 36"></label><label>ボーナス数字<input id="targetBonus" type="text" placeholder="例: 40"></label><label>開始シード<input id="searchStart" type="number" min="0" max="4294967295" value="20261122"></label><label>探索件数（最大300）<input id="searchCount" type="number" min="1" max="300" value="20"></label><label>一致条件<select id="matchMode"><option value="main">本数字集合（順不同）</option><option value="all">本数字＋ボーナス集合</option><option value="ordered">全数字の排出順</option></select></label><label>探索方式<select id="searchEngine"><option value="physics">Rapier物理抽選（パレット遠心攪拌）</option><option value="random">シード付き公平抽選（高速）</option></select></label></div><div class="buttons"><button id="seedSearch">シード探索開始</button><button id="seedStop" class="secondary" disabled>探索停止</button><button id="seedCsv" class="secondary">候補CSV</button></div><progress id="seedProgress" max="100" value="0" style="width:100%"></progress><div id="seedStatus" class="muted">未実行</div><div id="seedResults" style="overflow-x:auto"></div></div><div class="research"><h2>v0.7 モンテカルロ較正</h2><p class="muted">直前の物理・公平乱数比較で得た数字別のカイ二乗統計量を、重複なし抽選の公平なシミュレーション分布と比較します。固定シード試行は推測統計に利用しません。</p><label>較正用の公平抽選反復数（200～5000）<input id="mcCount" type="number" min="200" max="5000" value="1000"></label><div class="buttons"><button id="mcRun">モンテカルロ較正</button></div><div id="mcResult" class="muted">比較実験後に実行できます。</div></div><div class="muted">ドラッグで視点回転・ピンチ操作で拡大縮小。3D表示にはインターネット接続が必要です。機構は公表仕様を参考にした非公式の研究用近似。<a href="https://takarakuji-loto.jp/miniloto6/lots.html" target="_blank" rel="noopener">参照した機械仕様</a></div><div id="status" role="status">抽選準備完了</div><div class="buttons"><button id="draw">1回抽選</button><button class="secondary" id="reset">抽選結果クリア</button></div><label>本数字（抽選順）</label><div class="balls" id="mainballs"></div><label>ボーナス数字</label><div class="balls" id="bonusballs"></div><p class="notice">物理モードでは上部チャンバーで球を待機させた後、中心開口部からパレットへ落下させます。攪拌の駆動源はパレット（縦軸90 RPM）だけです。球直径50mm・質量14.09g、パレット直径928mmを共通スケールで扱います。球の抽出は仮想ゲートによる近似で、実機構の精密再現ではありません。既定は同方向回転の仮説Aです。</p></section>
+.research{background:#101d30;border:1px solid #344a64;padding:12px;border-radius:12px;margin:12px 0}.params{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px}.params input{width:100%;accent-color:#f49a2e}.params label{font-size:12px}.research output{color:#ffbc70;font-weight:bold}@media(max-width:480px){.params{grid-template-columns:1fr}}#scene{height:440px;position:relative;border-radius:12px;overflow:hidden;background:radial-gradient(circle at 45% 35%,#253b57,#08101e);touch-action:none}#scene canvas{width:100%;height:100%;display:block;aspect-ratio:auto}#scene .fallback{padding:25px;color:#ffc37b} @media(max-width:730px){#scene{height:340px}}</style></head><body><header><h1>◉ LOTO DRAW LAB <span style="font-size:12px;color:#9cb0c7">Prototype 1.5 · 外周ゲート</span></h1><p>Three.js 3D × Rapier物理演算 × 上部待機→落下→パレット遠心攪拌・抽出方式切替 | ロト6・ロト7</p><div class="install-panel"><button id="installApp" type="button" style="display:none">Androidにインストール</button><span id="installTip" style="color:#aab9cb;font-size:12px">Chromeのメニュー「︙」→「アプリをインストール」から追加できます</span></div></header><main>
+<section class="panel"><h2>抽選機</h2><div class="row"><div style="flex:1"><label for="game">ゲーム</label><select id="game"><option value="6">ロト6（1～43）</option><option value="7">ロト7（1～37）</option></select></div><div style="flex:1"><label for="mode">抽選方式</label><select id="mode"><option value="physics">物理抽選（近似）</option><option value="random">統計抽選（公平乱数）</option></select></div></div><label for="setball">セット球ラベル（物理パラメータは共通）</label><select id="setball"><option>指定なし</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option><option>F</option><option>G</option><option>H</option><option>I</option><option>J</option></select><div class="research"><h2>抽出サイクル方式</h2><label for="captureMode">1回抽選の球の取り出し方</label><select id="captureMode"><option value="gate-v1">外周ゲートに到達した球を取り出す（試験モデル）</option><option value="nearest">従来の近接球方式</option></select><p class="notice">試験モデルでは外周のゲートで1球を隔離し、下側ガイドへ送るまで、通過から約2.65秒を置きます。交互回転時は減速・停止を挟んで反対側のゲートへ。同方向設定では回転を継続します。<a href="https://yumelotokun.com/about/" target="_blank" rel="noopener noreferrer">参考サイトの技術仕様</a></p><label for="rotationMode">回転方向の仮説</label><select id="rotationMode"><option value="legacy" selected>交互回転：1球ごとに回転方向を反転</option><option value="continuous">A：同方向の連続回転</option></select><p class="notice">第2157回映像では残球の周回継続を確認。ただし駆動軸の停止・回転方向は未測定。交互回転・連続回転ともシミュレーション仮説です。B（停止・再加速）とC（映像の観察イベント）は<a href="https://github.com/ashinagawajb-byte/loto-draw-lab/blob/research/draw-2157-cycle/research/cycle_compare.html" target="_blank" rel="noopener noreferrer">独立比較ラボ</a>で扱います。<a href="./review.html">抽せん後レビュー</a> ／ <a href="https://www.takarakuji-dream.jp/takarakuji/backnumber" target="_blank" rel="noopener noreferrer">公式バックナンバー</a></p></div><p id="directionReadout" class="notice" aria-live="polite">回転待機</p><div id="scene" role="img" aria-label="3D抽選機。ドラッグで回転、ホイールで拡大縮小"></div><div class="research"><h2>物理研究パラメータ</h2><div class="params"><label>上部攪拌（使用しません）<output id="rpmVal">0</output> <input id="rpm" type="range" min="0" max="0" step="1" value="0" disabled></label><label>球の質量 <output id="massVal">14.09</output> g<input id="mass" type="range" min="13.95" max="14.23" step="0.01" value="14.09"></label><label>パレット回転数 <output id="palletRpmVal">90</output> rpm<input id="palletRpm" type="range" min="60" max="120" step="1" value="90"></label><label>パレット初期攪拌時間 <output id="mixTimeVal">8</output> 秒<input id="mixTime" type="range" min="4" max="12" step="1" value="8"></label><label>反発係数 <output id="bounceVal">0.70</output><input id="bounce" type="range" min="0.2" max="0.95" step="0.05" value="0.7"></label><label>パレットとの摩擦伝達 <output id="agitationVal">1.0</output> 倍<input id="agitation" type="range" min="0.2" max="2" step="0.1" value="1"></label></div><div class="muted">球規格：直径50±0.5mm／14.09g（13.95〜14.23g）。表示上の球材質：高密度ポリスチレン＋ウレタン塗装を模した外観。モデル上の反発・摩擦は近似値。上部チャンバーは待機・供給用として扱い、攪拌の駆動源は下部パレットのみです。球は上部から中心開口部を通ってパレットへ落下し、縦軸90 RPMの回転で水平方向へ移動する近似です。パレット直径928mm。遠心効果・摩擦伝達・排出口は研究用の近似です。回転方向は下の仮説切替に従います。</div><div class="row"><span class="muted">球の平均速度</span><strong id="speedVal">—</strong></div></div><div class="research"><h2>抽選サイクル・固定配置実験</h2><div class="params"><label>初期配置シード<input id="seed" type="number" value="20261122" step="1"></label><label>従来方式の抽出待ち（秒）<input id="forwardTime" type="range" min="0.3" max="3" step="0.1" value="1.2"><output id="forwardTimeVal">1.2</output></label><label>従来方式の再攪拌／外周ゲートの停止保持（秒）<input id="reverseTime" type="range" min="0.3" max="3" step="0.1" value="1.0"><output id="reverseTimeVal">1.0</output></label><label>高速研究・比較試行回数（各方式）<input id="compareCount" type="number" min="1" max="1000" value="10"></label></div><label><input id="fixedSeed" type="checkbox" checked> 毎回同じ初期配置から開始（再現性テスト）</label><div class="buttons"><button id="compare">物理・公平乱数を比較</button><button class="secondary" id="stopCompare" disabled>停止</button><button class="secondary" id="compareCsv">比較CSV出力</button></div><div id="compareStatus" class="muted">未実行</div><progress id="compareProgress" max="100" value="0" style="width:100%;height:12px"></progress><div id="testResult" class="muted"></div><div id="compareResult" style="overflow-x:auto"></div><p class="muted">本数字の出現率＝各数字が本数字に含まれた回数÷試行回数。比較中の物理演算は固定60Hzで進め、描画FPSから切り離します。同一シード・同一条件の繰り返しは再現性検証であり、独立した標本ではありません。高速比較とシード探索の物理方式は従来の近接球方式です。外周ゲート方式のシードは初期配置用で、同じ抽出順を保証しません。</p></div><div class="research" id="seedLab"><h2>v0.7 実際の当選数字からシード探索</h2><p class="muted">本数字をカンマまたは空白で入力。ボーナス数字は別欄。入力数字と仮想抽選が一致するシードを指定範囲で探索します。これは仮想モデルの逆探索であり、実機の乱数シードを特定するものではありません。</p><div class="params"><label>本数字<input id="targetMain" type="text" placeholder="例: 1 8 15 22 29 36"></label><label>ボーナス数字<input id="targetBonus" type="text" placeholder="例: 40"></label><label>開始シード<input id="searchStart" type="number" min="0" max="4294967295" value="20261122"></label><label>探索件数（最大300）<input id="searchCount" type="number" min="1" max="300" value="20"></label><label>一致条件<select id="matchMode"><option value="main">本数字集合（順不同）</option><option value="all">本数字＋ボーナス集合</option><option value="ordered">全数字の排出順</option></select></label><label>探索方式<select id="searchEngine"><option value="physics">Rapier物理抽選（パレット遠心攪拌）</option><option value="random">シード付き公平抽選（高速）</option></select></label></div><div class="buttons"><button id="seedSearch">シード探索開始</button><button id="seedStop" class="secondary" disabled>探索停止</button><button id="seedCsv" class="secondary">候補CSV</button></div><progress id="seedProgress" max="100" value="0" style="width:100%"></progress><div id="seedStatus" class="muted">未実行</div><div id="seedResults" style="overflow-x:auto"></div></div><div class="research"><h2>v0.7 モンテカルロ較正</h2><p class="muted">直前の物理・公平乱数比較で得た数字別のカイ二乗統計量を、重複なし抽選の公平なシミュレーション分布と比較します。固定シード試行は推測統計に利用しません。</p><label>較正用の公平抽選反復数（200～5000）<input id="mcCount" type="number" min="200" max="5000" value="1000"></label><div class="buttons"><button id="mcRun">モンテカルロ較正</button></div><div id="mcResult" class="muted">比較実験後に実行できます。</div></div><div class="muted">ドラッグで視点回転・ピンチ操作で拡大縮小。3D表示にはインターネット接続が必要です。機構は公表仕様を参考にした非公式の研究用近似。<a href="https://takarakuji-loto.jp/miniloto6/lots.html" target="_blank" rel="noopener">参照した機械仕様</a></div><div id="status" role="status">抽選準備完了</div><div class="buttons"><button id="draw">1回抽選</button><button class="secondary" id="reset">抽選結果クリア</button></div><label>本数字（抽選順）</label><div class="balls" id="mainballs"></div><label>ボーナス数字</label><div class="balls" id="bonusballs"></div><p class="notice">物理モードでは上部チャンバーで球を待機させた後、中心開口部からパレットへ落下させます。攪拌の駆動源はパレット（縦軸90 RPM）だけです。球直径50mm・質量14.09g、パレット直径928mmを共通スケールで扱います。球の抽出は仮想ゲートによる近似で、実機構の精密再現ではありません。既定は交互回転です。外周ゲート方式の保持・減速時間はモデルの設定値です。上部での独立攪拌やボーナス専用段は未実装です。</p></section>
 <section class="panel"><h2>予想数字（最大5口）</h2>
 <div class="research">
 <h2>LOTO6 SET ANALYZER</h2>
@@ -41,7 +41,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 const $=id=>document.getElementById(id), cfg=()=>{const seven=$('game').value==='7';return {n:seven?37:43,k:seven?7:6,b:seven?2:1,seven}};
 const rng=max=>{const x=new Uint32Array(1),limit=Math.floor(4294967296/max)*max;do{crypto.getRandomValues(x)}while(x[0]>=limit);return x[0]%max};
 const shuffle=n=>{const a=Array.from({length:n},(_,i)=>i+1);for(let i=n-1;i>0;i--){const j=rng(i+1);[a[i],a[j]]=[a[j],a[i]]}return a};
-let selected=[],tickets=[],history=[],busy=false,world,renderer,scene,camera,controls,balls=[],paddles=[],last=0,acc=0,ready=false,run=true;let stage="upper",upperAngle=0,palletAngle=0,palletVisual=null,gateVisuals=[];const PALLET_FLOOR=-1.76, PALLET_WALL_TOP=-1.10;
+let selected=[],tickets=[],history=[],busy=false,world,renderer,scene,camera,controls,balls=[],paddles=[],last=0,acc=0,ready=false,run=true;let stage="upper",upperAngle=0,palletAngle=0,palletVisual=null,gateVisuals=[],oppositeBase=null;const PALLET_FLOOR=-1.76, PALLET_WALL_TOP=-1.10;
 function save(){try{localStorage.setItem('loto-draw-lab-v2',JSON.stringify({game:$('game').value,tickets,history}))}catch{}}
 function load(){try{const x=JSON.parse(localStorage.getItem('loto-draw-lab-v2')||localStorage.getItem('loto-draw-lab-v1')||'{}');if(['6','7'].includes(x.game))$('game').value=x.game;tickets=Array.isArray(x.tickets)?x.tickets.slice(0,5):[];history=Array.isArray(x.history)?x.history.slice(0,100):[]}catch{}}
 function showBalls(ns,id,bonus=false){$(id).replaceChildren();ns.forEach(n=>{const e=document.createElement('span');e.className='ball'+(bonus?' bonus':'');e.textContent=String(n).padStart(2,'0');$(id).append(e)})}
@@ -97,10 +97,10 @@ $('analyzerFile').onchange=async event=>{
  }catch(err){$('analyzerStatus').textContent=err.message;}
  finally{event.target.value='';}
 };
-function record(nums,mode,directions=[]){
+function record(nums,mode,directions=[],captureMode,gateEvents){
  const {k,b,seven}=cfg(),main=nums.slice(0,k),bonus=nums.slice(k,k+b),grades=tickets.map(t=>grade(t,main,bonus,seven));
  history.unshift({time:new Date().toISOString(),game:seven?'ロト7':'ロト6',mode,setball:$('setball').value,
-  parameters:mode==='physics'?params():null,main,bonus,grades,directions});
+  parameters:mode==='physics'?{...params(),captureMode}:null,main,bonus,grades,directions,gateEvents});
  history=history.slice(0,100);
  latestAnalyzerMatch=!seven&&analyzerPortfolio?analyzerPortfolio.tickets.map(ticket=>({
   main:ticket.filter(n=>main.includes(n)).length,bonus:ticket.filter(n=>bonus.includes(n)).length,
@@ -111,20 +111,37 @@ function record(nums,mode,directions=[]){
  $('status').textContent=`抽選完了：${mode==='physics'?'Rapier物理近似':'公平乱数'}`;
  renderHistory();save();
 }
-function renderHistory(){$('history').replaceChildren();history.forEach(h=>{const d=document.createElement('div');d.textContent=`${new Date(h.time).toLocaleString('ja-JP')}｜${h.game}｜${h.mode==='physics'?'物理':'統計'}｜${h.main.join(' ')} + ${h.bonus.join(' ')}${h.parameters?'｜'+h.parameters.rpm+'rpm / '+h.parameters.mass+'g / 反発'+h.parameters.bounce+' / '+(h.parameters.rotationMode||'legacy'):''}${(h.grades||[]).some(Boolean)?'｜的中 '+h.grades.map((g,i)=>g?`${i+1}口目 ${g}等`:'').filter(Boolean).join(', '):''}`;const review=document.createElement('a');
+function renderHistory(){$('history').replaceChildren();history.forEach(h=>{const d=document.createElement('div');d.textContent=`${new Date(h.time).toLocaleString('ja-JP')}｜${h.game}｜${h.mode==='physics'?'物理':'統計'}｜${h.main.join(' ')} + ${h.bonus.join(' ')}${h.parameters?'｜'+h.parameters.rpm+'rpm / '+h.parameters.mass+'g / 反発'+h.parameters.bounce+' / '+(h.parameters.rotationMode||'legacy')+' / '+(h.parameters.captureMode==='gate-v1'?'外周ゲート':'近接球方式'):''}${(h.grades||[]).some(Boolean)?'｜的中 '+h.grades.map((g,i)=>g?`${i+1}口目 ${g}等`:'').filter(Boolean).join(', '):''}`;const review=document.createElement('a');
  review.href='./review.html?simulation='+encodeURIComponent(h.time);
  review.textContent='ChatGPTで回顧';
  review.style.marginInlineStart='8px';
  d.append(review);$('history').append(d)})}
-function lock(){for(const id of ['game','mode','setball','rotationMode','draw','analyzerFile','palletRpm','mixTime','mass','bounce','agitation','bulk','reset','clearSelection','clearTickets','add','compare','compareCount','seed','fixedSeed','forwardTime','reverseTime','targetMain','targetBonus','searchStart','searchCount','matchMode','searchEngine','seedSearch','mcRun','mcCount'])$(id).disabled=busy;renderTickets()}
+function lock(){for(const id of ['game','mode','setball','rotationMode','captureMode','draw','analyzerFile','palletRpm','mixTime','mass','bounce','agitation','bulk','reset','clearSelection','clearTickets','add','compare','compareCount','seed','fixedSeed','forwardTime','reverseTime','targetMain','targetBonus','searchStart','searchCount','matchMode','searchEngine','seedSearch','mcRun','mcCount'])$(id).disabled=busy;renderTickets()}
 function ballTexture(n){const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');x.fillStyle='#fff';x.beginPath();x.arc(128,128,82,0,Math.PI*2);x.fill();x.fillStyle='#17243b';x.font='bold 108px Arial';x.textAlign='center';x.textBaseline='middle';x.fillText(String(n),128,133);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t}
 const MODEL_SCALE=0.2; // 1 scene unit = 200 mm. 25 mm radius = 0.125 units.
 const BALL_RADIUS=.125,PALLET_RADIUS=0.928/2/MODEL_SCALE,PALLET_SAFE_RADIUS=PALLET_RADIUS-BALL_RADIUS-.055;
 const sphereGeo=new THREE.SphereGeometry(BALL_RADIUS,20,14),shellRadius=1.35;
 function wallBox(pos,rot,size){const d=RAPIER.RigidBodyDesc.fixed().setTranslation(...pos);const body=world.createRigidBody(d);if(rot)body.setRotation(rot,true);world.createCollider(RAPIER.ColliderDesc.cuboid(...size).setRestitution(.85).setFriction(.25),body)}
-function resetMachine(){if(!ready)return;stage='upper';upperAngle=0;palletAngle=0;spinDirection=1;setGateActive(1);
-balls.forEach(b=>{scene.remove(b.mesh);b.mesh.material.dispose();world.removeRigidBody(b.body)});balls=[];
-paddles.forEach(p=>{scene.remove(p.mesh);world.removeRigidBody(p.body)});paddles=[];
+function clearMachineBalls(){
+ for(const ball of balls){
+  scene.remove(ball.mesh);
+  ball.mesh.material.dispose();
+  const label=ball.mesh.children[0].material;
+  label.map?.dispose();
+  label.dispose();
+  world.removeRigidBody(ball.body);
+ }
+ balls=[];
+ for(const paddle of paddles){
+  scene.remove(paddle.mesh);
+  world.removeRigidBody(paddle.body);
+ }
+ paddles=[];
+}
+function resetMachine(){
+ if(!ready)return;
+ stage='upper';upperAngle=0;palletAngle=0;spinDirection=1;setGateActive(1);
+ clearMachineBalls();
 const {n}=cfg(),seedShift=(((Number($('seed').value)||0)>>>0)*0.0000001)%6.283185307;
 for(let i=1;i<=n;i++){
  // Start in the upper chamber so the later drop to the pallet is visible.
@@ -155,6 +172,7 @@ pallet.add(tracer);
 const rim=new THREE.Mesh(new THREE.TorusGeometry(PALLET_RADIUS,.05,12,90),chrome);rim.rotation.x=Math.PI/2;rim.position.y=PALLET_WALL_TOP;scene.add(rim);
 const wall=new THREE.Mesh(new THREE.CylinderGeometry(PALLET_RADIUS,PALLET_RADIUS,.76,96,1,true),glass);wall.position.y=-1.48;scene.add(wall);
 const outletBase=new THREE.Mesh(new THREE.BoxGeometry(.92,.10,.52),chrome);outletBase.position.set(PALLET_RADIUS+.40,-1.60,0);scene.add(outletBase);
+oppositeBase=outletBase.clone();oppositeBase.position.x=-outletBase.position.x;oppositeBase.visible=false;scene.add(oppositeBase);
 const makeGate=(side)=>{const group=new THREE.Group();const tube=new THREE.Mesh(new THREE.BoxGeometry(.92,.12,.16),new THREE.MeshStandardMaterial({color:0xb7c6d5,metalness:.72,roughness:.28,emissive:0x000000}));tube.position.set(PALLET_RADIUS+.40,-1.49,side*.18);group.add(tube);const lip=new THREE.Mesh(new THREE.BoxGeometry(.22,.16,.16),new THREE.MeshStandardMaterial({color:0xf4a23a,metalness:.25,roughness:.35,emissive:0x000000}));lip.position.set(PALLET_RADIUS-.02,-1.46,side*.18);group.add(lip);scene.add(group);return {side,group,tube,lip}};
 gateVisuals=[makeGate(1),makeGate(-1)];
 // Only the platter drive shaft is visible BELOW the bowl; no axle crosses the upper chamber.
@@ -213,9 +231,9 @@ function containPalletBall(ball){
   ball.body.setLinvel({x:vx,y:vy,z:vz},true);
  }
 }
-function physicsStep(){
+function physicsStep(driveScale=1,gateModel=false){
  const settings=params(),dt=1/60;
- const signedOmega=spinDirection*settings.palletRpm*2*Math.PI/60;
+ const signedOmega=spinDirection*settings.palletRpm*2*Math.PI/60*driveScale;
  palletAngle+=signedOmega*dt;
  simTicks++;
  const omega=signedOmega,absOmega=Math.abs(omega);
@@ -231,8 +249,10 @@ function physicsStep(){
   const speedTarget=omega*r*.2;
   const tangentDelta=Math.max(-.09,Math.min(.09,(speedTarget-tangent)*.17*drive));
   const outward=Math.min(.035,absOmega*absOmega*r*.00034*drive);
-  ball.body.applyImpulse({x:(tx*tangentDelta+rx*outward)*settings.mass/1000,
-                          y:0,z:(tz*tangentDelta+rz*outward)*settings.mass/1000},true);
+  // In the gate model, approximate the inward component of gravity on a sloped disk.
+  const radialImpulse=outward-(gateModel?Math.min(.07,r*.075)*(1-driveScale):0);
+  ball.body.applyImpulse({x:(tx*tangentDelta+rx*radialImpulse)*settings.mass/1000,
+                          y:0,z:(tz*tangentDelta+rz*radialImpulse)*settings.mass/1000},true);
  }
  if(palletVisual)palletVisual.rotation.y=-palletAngle;
  world.step();
@@ -240,7 +260,7 @@ function physicsStep(){
 }
 function frame(now){requestAnimationFrame(frame);if(!ready)return;const delta=Math.min((now-last)/1000||0,.05);last=now;if(!manualPhysics){acc+=delta;let steps=0;while(acc>=1/60&&steps<3){physicsStep();acc-=1/60;steps++}if(steps===3)acc=0}for(const b of balls){if(!b.ejecting){const p=b.body.translation(),q=b.body.rotation();b.mesh.position.set(p.x,p.y,p.z);b.mesh.quaternion.set(q.x,q.y,q.z,q.w)}}for(const p of paddles){const q=p.body.rotation();p.mesh.quaternion.set(q.x,q.y,q.z,q.w)}if(simTicks%20===0&&balls.length){const moving=balls.filter(b=>b.body.isEnabled()&&!b.ejecting);const avg=moving.reduce((sum,b)=>{const v=b.body.linvel();return sum+Math.hypot(v.x,v.y,v.z)},0)/(moving.length||1);$('speedVal').textContent=(avg*MODEL_SCALE).toFixed(2)+' m/s（モデル換算）'}controls.update();renderer.render(scene,camera)}
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
-function setGateActive(side){for(const g of gateVisuals){if(!g)continue;const active=g.side===side;g.tube.material.emissive.setHex(active?0x3b6ba0:0x000000);g.lip.material.emissive.setHex(active?0xaa5500:0x000000);g.tube.material.color.setHex(active?0xd6ecff:0xb7c6d5);}}
+function setGateActive(side){for(const g of gateVisuals){if(!g)continue;const active=g.side===side;g.lip.position.x=PALLET_RADIUS-.02+(g.opposed&&active ? .30 : 0);g.tube.material.emissive.setHex(active?0x3b6ba0:0x000000);g.lip.material.emissive.setHex(active?0xaa5500:0x000000);g.tube.material.color.setHex(active?0xd6ecff:0xb7c6d5);}}
 async function ejectBall(ball,side,duration,display){ball.ejecting=true;ball.body.setEnabled(false);setGateActive(side);if(!display){ball.mesh.visible=false;ball.ejecting=false;return}const start=ball.mesh.position.clone();const p1=new THREE.Vector3(PALLET_RADIUS-.06,-1.46,side*.18);const p2=new THREE.Vector3(PALLET_RADIUS+.34,-1.47,side*.18);const p3=new THREE.Vector3(PALLET_RADIUS+.92,-1.57,side*.18);const frames=Math.max(12,Math.round(duration/1000*60));for(let i=0;i<frames;i++){const t=(i+1)/frames;let pos;if(t<.35){const u=t/.35;pos=start.clone().lerp(p1,u)}else if(t<.75){const u=(t-.35)/.40;pos=p1.clone().lerp(p2,u)}else{const u=(t-.75)/.25;pos=p2.clone().lerp(p3,u)}ball.mesh.position.copy(pos);await delay(1000/60)}ball.mesh.visible=false;ball.ejecting=false;}
 function pickGate(side){const gate=new THREE.Vector3(PALLET_RADIUS-.15,-1.50,side*.15);const available=balls.filter(b=>b.body.isEnabled());available.sort((a,b)=>{const pa=a.body.translation(),pb=b.body.translation();return new THREE.Vector3(pa.x,pa.y,pa.z).distanceToSquared(gate)-new THREE.Vector3(pb.x,pb.y,pb.z).distanceToSquared(gate)});return available[0]}
 function rotationDirection(mode,index){return mode==='legacy'&&index%2===1?-1:1;}
@@ -291,12 +311,161 @@ async function physicalCycle(display=true,directions=[]){
  }
  return chosen;
 }
-async function physicalDraw(){busy=true;lock();try{
- const directions=[];
- const chosen=await physicalCycle(true,directions);
- record(chosen,'physics',directions);
- $('directionReadout').textContent='抽出順の回転：'+directions.map(directionLabel).join(' → ');
- }catch(e){$('status').textContent='物理抽選エラー：'+e.message}finally{busy=false;lock();resetMachine()}}
+// Crossing is measured on the fixed-step trajectory, with no nearest-ball fallback.
+function gateCrossing(before,after,side){
+ const from=before.z,to=after.z;
+ if(from>=0||to<0)return null;
+ const fraction=-from/(to-from);
+ const x=before.x+(after.x-before.x)*fraction;
+ const y=before.y+(after.y-before.y)*fraction;
+ return side*x>=PALLET_SAFE_RADIUS-.25&&y<-1.30?fraction:null;
+}
+function showGateLayout(opposed){
+ for(const gate of gateVisuals){
+  gate.opposed=opposed;
+  gate.group.scale.x=opposed?gate.side:1;
+  gate.group.position.z=opposed?-gate.side*.18:0;
+ }
+ if(oppositeBase)oppositeBase.visible=opposed;
+}
+async function gatedCycle(display=true,directions=[],events=[]){
+ // Contact ordering depends on the world's prior contacts. Give each gate trial a fresh world.
+ const previousWorld=world;
+ clearMachineBalls();
+ try{
+  initWorld();
+  showGateLayout(true);
+  return await runGateCycle(display,directions,events);
+ }finally{
+  showGateLayout(false);
+  clearMachineBalls();
+  world.free();
+  world=previousWorld;
+  resetMachine();
+ }
+}
+async function runGateCycle(display,directions,events){
+ const {k,b}=cfg(),rotationMode=$('rotationMode').value;
+ const alternating=rotationMode==='legacy',chosen=[];
+ const regroup=Number($('reverseTime').value);
+ const stepsPerSecond=60, captureWait=12, hold=2.4, guide=.6, ramp=.65;
+ let lastFrame=null, pending=0, steps=0;
+ const tick=async()=>{
+  if(!display){
+   if(++steps%120===0)await delay(0);
+   return;
+  }
+  while(pending<1){
+   const time=await new Promise(requestAnimationFrame);
+   pending+=Math.min(.05,lastFrame===null?1/60:(time-lastFrame)/1000)*stepsPerSecond;
+   lastFrame=time;
+  }
+  pending--;
+ };
+ const advance=async(seconds,drive,afterStep)=>{
+  const count=Math.round(seconds*stepsPerSecond);
+  for(let i=1;i<=count;i++){
+   await tick();
+   const progress=i/count;
+   physicsStep(drive(progress),true);
+   afterStep?.(progress);
+  }
+ };
+ const status=message=>{if(display)$('status').textContent=message;};
+ const stopped=()=>0, full=()=>1;
+ simTicks=0;
+ setGateActive(0);
+ status('上部チャンバーで待機中');
+ await advance(.9,stopped);
+ status('上部からパレット中央へ落下');
+ transferToPallet();
+ await advance(1.3,stopped);
+ stage='pallet';
+ await advance(ramp,t=>t);
+ status('盤の外周に向けて攪拌中');
+ await advance(Number($('mixTime').value),full);
+ for(let i=0;i<k+b;i++){
+  const side=spinDirection;
+  directions.push(side);
+  const label=i<k?'本数字 '+(i+1)+'球目':'ボーナス '+(i+1-k)+'球目';
+  if(display)$('directionReadout').textContent=label+'：'+directionLabel(side);
+  status(label+'｜外周ゲートを開き、球の通過を待機');
+  setGateActive(side);
+  const remaining=balls.filter(ball=>ball.body.isEnabled());
+  let picked;
+  for(let step=0;step<captureWait*stepsPerSecond&&!picked;step++){
+   await tick();
+   const before=remaining.map(ball=>ball.body.translation());
+   physicsStep(1,true);
+   let first=Infinity;
+   remaining.forEach((ball,index)=>{
+    const crossing=gateCrossing(before[index],ball.body.translation(),side);
+    if(crossing!==null&&crossing<first){
+     picked=ball;
+     first=crossing;
+    }
+   });
+  }
+  setGateActive(0);
+  if(!picked)throw Error(label+'で球が12秒以内にゲートに到達しませんでした。パレット回転数や摩擦伝達を調整してください。');
+  const captureTick=simTicks;
+  const point=picked.body.translation();
+  const start=new THREE.Vector3(point.x,point.y,point.z);
+  const pocket=new THREE.Vector3(side*(PALLET_RADIUS+.24),-1.49,0);
+  const exit=new THREE.Vector3(side*(PALLET_RADIUS+.90),-1.77,0);
+  picked.ejecting=true;
+  picked.body.setEnabled(false);
+  status(label+'｜'+picked.id+'番を受け部で隔離');
+  await advance(.25,full,t=>picked.mesh.position.lerpVectors(start,pocket,t));
+  await advance(hold,alternating?t=>Math.max(0,1-t*hold/ramp):full);
+  events.push({ball:picked.id,side,captureTick,guideTick:simTicks});
+  status(label+'｜下側ガイドへ排出');
+  await advance(guide,alternating?stopped:full,t=>picked.mesh.position.lerpVectors(pocket,exit,t));
+  picked.mesh.visible=false;
+  picked.ejecting=false;
+  chosen.push(picked.id);
+  if(display){
+   showBalls(chosen.slice(0,k),'mainballs');
+   showBalls(chosen.slice(k),'bonusballs',true);
+  }
+  if(alternating&&i+1<k+b){
+   status('パレット停止中｜残球が慣性で移動');
+   await advance(regroup,stopped);
+   spinDirection=rotationDirection(rotationMode,i+1);
+   status('逆方向へ再加速');
+   await advance(ramp,t=>t);
+  }
+ }
+ return chosen;
+}
+async function physicalDraw(){
+ busy=true;
+ lock();
+ const captureMode=$('captureMode').value;
+ const directions=[],gateEvents=[];
+ try{
+  let chosen;
+  if(captureMode==='gate-v1'){
+   manualPhysics=true;
+   acc=0;
+   $('mainballs').replaceChildren();
+   $('bonusballs').replaceChildren();
+   chosen=await gatedCycle(true,directions,gateEvents);
+  }else{
+   chosen=await physicalCycle(true,directions);
+  }
+  record(chosen,'physics',directions,captureMode,gateEvents.length?gateEvents:undefined);
+  $('directionReadout').textContent='抽出順の回転：'+directions.map(directionLabel).join(' → ');
+ }catch(e){
+  $('status').textContent='物理抽選エラー：'+e.message;
+ }finally{
+  if(captureMode!=='gate-v1')resetMachine();
+  manualPhysics=false;
+  acc=0;
+  busy=false;
+  lock();
+ }
+}
 function seededShuffle(n,seed){let state=seed>>>0;const rand=()=>{state=(state+0x6D2B79F5)>>>0;let t=state;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296};const a=Array.from({length:n},(_,i)=>i+1);for(let i=n-1;i>0;i--){const j=Math.floor(rand()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 // Regularized upper incomplete gamma Q(a,x), used for chi-square survival probability.
 function logGamma(z){const p=[.99999999999980993,676.5203681218851,-1259.1392167224028,771.3234287776531,-176.6150291621406,12.507343278686905,-.13857109526572012,9.984369578019572e-6,1.5056327351493116e-7];if(z<.5)return Math.log(Math.PI)-Math.log(Math.sin(Math.PI*z))-logGamma(1-z);z-=1;let x=p[0];for(let i=1;i<p.length;i++)x+=p[i]/(z+i);const t=z+7.5;return .5*Math.log(2*Math.PI)+(z+.5)*Math.log(t)-t+Math.log(x)}
