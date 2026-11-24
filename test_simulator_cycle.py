@@ -38,7 +38,7 @@ assert.throws(()=>parseAnalyzerCSV(csv.replace(',10,11,12',',10,10,12')));
 
     def test_outer_gate_captures_only_forward_crossings_at_outer_rim(self):
         page = PAGE.read_text(encoding="utf-8")
-        self.assertIn('<option value="gate-v1">', page)
+        self.assertIn('<option value="gate-v2">', page)
         gate = page[page.index("function gateCrossing("):page.index("function showGateLayout(")]
         tests = """
 const assert = require('node:assert/strict');
