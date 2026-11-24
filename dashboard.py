@@ -8,7 +8,7 @@ from compare_models import compare
 
 def get_data():
     summary = query("""
-      SELECT game, COUNT(*) rounds, COALESCE(SUM(scanned),0) scanned,
+      SELECT game, COUNT(*) rounds, MAX(CAST(round AS INTEGER)) latest_round, COALESCE(SUM(scanned),0) scanned,
         COALESCE(SUM(seed_limit),0) planned,
         SUM(CASE WHEN exact_count>0 THEN 1 ELSE 0 END) completed,
         COALESCE(SUM(exact_count),0) exact
@@ -151,7 +151,7 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 <p class="muted lead">GitHub Actions × Cloudflare D1｜読み取り専用スナップショット</p>
 <p id="stamp" class="muted lead"></p></header>
 <div class="controls"><button type="button" data-game="6" aria-pressed="true">ロト6</button><button type="button" data-game="7" aria-pressed="false">ロト7</button></div>
-<section class="grid" aria-label="進捗"><div class="panel"><div class="muted">登録開催回</div><div class="metric" id="rounds">—</div></div>
+<section class="grid" aria-label="進捗"><div class="panel"><div class="muted">登録開催回</div><div class="metric" id="rounds">—</div><div class="muted lead" id="registered-through"></div></div>
 <div class="panel"><div class="muted">探索済みシード</div><div class="metric" id="scanned">—</div></div>
 <div class="panel"><div class="muted">完全一致した開催回</div><div class="metric" id="finished">—</div></div>
 <div class="panel"><div class="muted">現在の探索範囲に対する進捗</div><div class="metric" id="percent">—</div></div></section>
@@ -326,7 +326,9 @@ showMain();
 const s=D.summary.find(v=>Number(v.game)===game)||{};
 const scanned=Number(s.scanned||0),planned=Number(s.planned||0);
 const pct=planned?100*scanned/planned:0;
-$('rounds').textContent=n(s.rounds);$('scanned').textContent=n(scanned);
+$('rounds').textContent=n(s.rounds);
+$('registered-through').textContent=s.latest_round?'最新登録：第'+s.latest_round+'回':'';
+$('scanned').textContent=n(scanned);
 $('finished').textContent=n(s.completed);$('percent').textContent=pct.toFixed(2)+'%';
 $('bar').style.width=Math.min(100,pct)+'%';
 $('plan').textContent=n(scanned)+' / '+n(planned)+' シード（現在設定されている探索範囲。未発見の場合は拡張）';
