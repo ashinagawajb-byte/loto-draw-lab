@@ -6,6 +6,38 @@ from worker import query
 from evaluate_forecasts import score_predictions
 from compare_models import compare
 
+SPACE=2**32
+
+def merge_main_counts(main_stats, baseline_cursor, incremental, registered):
+    """Merge baseline and per-round checkpoints without summing overlapping scans."""
+    by_game={}
+    def add(game, rid, value, cursor, source):
+        game=str(game); rid=int(rid); count=int(value.get('count') or 0)
+        entry={'round':rid,'count':count,'bonus_count':int(value.get('bonus_count') or 0),
+               'min_seed':int(value['min_seed']) if count and value.get('min_seed') is not None else None,
+               'mean_seed':round(int(value['sum_seed'])/count) if count else None,
+               'cursor':int(cursor),'source':source}
+        rows=by_game.setdefault(game,{})
+        if rid not in rows or entry['cursor']>rows[rid]['cursor']:
+            rows[rid]=entry
+    for key,value in main_stats.items():
+        game,rid=key.split(':',1)
+        add(game,rid,value,baseline_cursor,'baseline')
+    for row in incremental:
+        add(row['game'],row['round'],row,row['cursor'],'incremental')
+    result={}
+    for game,latest in registered.items():
+        game=str(game); rows=by_game.setdefault(game,{})
+        if latest is not None and int(latest) not in rows:
+            add(game,latest,{},0,'pending')
+    for game,rows in by_game.items():
+        values=list(rows.values())
+        result[game]={'matched_rounds':sum(r['count']>0 for r in values),
+                      'matching_seeds':sum(r['count'] for r in values),
+                      'bonus_matching_seeds':sum(r['bonus_count'] for r in values),
+                      'recent':sorted(values,key=lambda r:r['round'],reverse=True)[:15]}
+    return result
+
 def get_data():
     summary = query("""
       SELECT game, COUNT(*) rounds, MAX(CAST(round AS INTEGER)) latest_round, COALESCE(SUM(scanned),0) scanned,
@@ -52,36 +84,22 @@ def get_data():
         global_rows = []
         global_counts = []
         combined_counts = []
+    main_stats={}
     try:
         main_rows=query("SELECT cursor,target_hash,stats,updated_at FROM main_progress WHERE id=1")
         main_state=main_rows[0] if main_rows else None
         if main_state:
             main_stats=json.loads(main_state.pop("stats"))
-            main_counts={}
-            for key,value in main_stats.items():
-                game,round_id=key.split(':',1)
-                agg=main_counts.setdefault(game,{'matched_rounds':0,'matching_seeds':0,
-                                                  'bonus_matching_seeds':0,'recent':[]})
-                agg['matched_rounds']+=1
-                agg['matching_seeds']+=int(value['count'])
-                agg['bonus_matching_seeds']+=int(value['bonus_count'])
-                agg['recent'].append({'round':int(round_id),
-                                      'count':int(value['count']),
-                                      'bonus_count':int(value['bonus_count']),
-                                      'min_seed':int(value['min_seed']),
-                                      'mean_seed':round(int(value['sum_seed'])/max(1,int(value['count'])))})
-            for agg in main_counts.values():
-                agg['recent']=sorted(agg['recent'],key=lambda r:r['round'],reverse=True)[:15]
-        else:main_counts={}
     except RuntimeError as exc:
         if 'no such table' not in str(exc).lower():raise
         main_state=None
-        main_counts={}
     try:
         incremental=query("SELECT game,round,cursor,count,bonus_count,min_seed,sum_seed FROM analyzer_round_scan ORDER BY game,round DESC")
     except RuntimeError as exc:
         if 'no such table' not in str(exc).lower():raise
         incremental=[]
+    main_counts=merge_main_counts(main_stats,main_state['cursor'] if main_state else 0,
+                                  incremental,{row['game']:row['latest_round'] for row in summary})
     active = query("""
       SELECT game, round, scanned, seed_limit, best
       FROM jobs WHERE scanned > 0 AND scanned < seed_limit
@@ -174,15 +192,15 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 <div id="incremental-seed-progress" class="muted lead">確認中</div>
 <p><a href="predictions/index.json">固定予測ファイル一覧</a></p></section>
 <section class="panel"><h2>本数字のみの探索（主研究）</h2>
-<p class="muted lead">本数字一致を主指標として、ボーナス一致は内訳として別集計。旧完全一致探索は保持しています。主探索と完全一致探索のシード走査率は別々です。</p>
+<p class="muted lead">本数字一致を主指標として、ボーナス一致は内訳として別集計。基礎探索とAnalyzerから追加された開催回の探索結果を統合します。探索中の回は途中集計として表示します。</p>
 <div class="grid">
-<div><div class="muted lead">本数字のみの探索済みシード</div><div class="metric" id="main-scanned">—</div></div>
-<div><div class="muted lead">全シード空間の探索率</div><div class="metric" id="main-percent">—</div></div>
+<div><div class="muted lead">最新登録回の探索済みシード</div><div class="metric" id="main-scanned">—</div></div>
+<div><div class="muted lead">最新登録回の探索率</div><div class="metric" id="main-percent">—</div></div>
 <div><div class="muted lead">本数字一致の延べ件数</div><div class="metric" id="main-hits">—</div></div>
 </div>
 <div class="progress"><div id="main-bar" style="width:0%"></div></div>
 <p class="muted lead" id="main-note"></p>
-<div class="scroll"><table><thead><tr><th>開催回</th><th>本数字一致</th><th>うちボーナス一致</th><th>最小シード</th><th>平均シード</th></tr></thead><tbody id="main-table"></tbody></table></div>
+<div class="scroll"><table><thead><tr><th>開催回</th><th>探索進捗</th><th>本数字一致</th><th>うちボーナス一致</th><th>最小シード</th><th>平均シード</th></tr></thead><tbody id="main-table"></tbody></table></div>
 </section>
 <section class="panel"><h2>新方式：全開催回一括照合</h2>
 <p class="muted lead">各シードについてロト6・ロト7の結果を1回ずつ生成し、全開催回を同時照合します。旧方式の探索件数とは別の指標です。</p>
@@ -433,28 +451,29 @@ const incremental=D.incremental||[];
 incrementalBox.textContent=incremental.length?incremental.map(r=>'ロト'+r.game+' 第'+r.round+'回：'+(100*r.cursor/4294967296).toFixed(3)+'%（本数字一致 '+r.count+'件）').join(' ／ '):'追加回の探索準備中';
 const mainState=D.main_progress||null;
 const mainByGame=D.main_counts||{};
-const totalMain=mainState?Number(mainState.cursor):0;
-$('main-scanned').textContent=mainState?n(totalMain):'未開始';
-$('main-percent').textContent=mainState?(totalMain/4294967296*100).toFixed(3)+'%':'—';
-$('main-bar').style.width=Math.min(100,totalMain/4294967296*100)+'%';
 function showMain(){
  const summary=mainByGame[String(game)]||{matched_rounds:0,matching_seeds:0,bonus_matching_seeds:0,recent:[]};
+ const latest=summary.recent[0],cursor=latest?Number(latest.cursor):0;
+ const pct=100*cursor/4294967296;
+ $('main-scanned').textContent=latest?n(cursor):'未開始';
+ $('main-percent').textContent=latest?pct.toFixed(3)+'%':'—';
+ $('main-bar').style.width=Math.min(100,pct)+'%';
  $('main-hits').textContent=n(summary.matching_seeds);
- $('main-note').textContent=mainState?
- '本数字一致が見つかった開催回 '+n(summary.matched_rounds)+'回。ボーナスまで一致した延べ件数 '+n(summary.bonus_matching_seeds)+'件。最終更新(UTC)：'+mainState.updated_at+
- '。全シードを探索した数と一致件数は別です。':
- '本数字のみの探索チェックポイントを準備中です。';
+ $('main-note').textContent=(latest?'最新登録：第'+latest.round+'回｜'+(cursor===4294967296?'探索完了':cursor>0?'探索中（暫定値）':'探索開始待ち')+'。':'')+
+ ' 本数字一致が見つかった開催回 '+n(summary.matched_rounds)+'回。ボーナスまで一致した延べ件数 '+n(summary.bonus_matching_seeds)+'件。'+
+ (mainState?'基礎探索率 '+(Number(mainState.cursor)/4294967296*100).toFixed(3)+'%（最終更新 UTC：'+mainState.updated_at+'）。':'')+
+ ' 本数字一致件数は基礎探索と追加回探索の合算です。';
  const body=$('main-table');body.replaceChildren();
  for(const r of summary.recent){
-  const tr=document.createElement('tr');
-  for(const value of [r.round,r.count,r.bonus_count,r.min_seed,r.mean_seed]){
-    const td=document.createElement('td');td.textContent=n(value);tr.append(td)
+  const tr=document.createElement('tr'),progress=Number(r.cursor)/4294967296*100;
+  for(const value of [n(r.round),progress.toFixed(3)+'%'+(r.cursor===4294967296?' 完了':r.cursor>0?' 探索中':' 待機'),n(r.count),n(r.bonus_count),r.min_seed==null?'—':n(r.min_seed),r.mean_seed==null?'—':n(r.mean_seed)]){
+    const td=document.createElement('td');td.textContent=value;tr.append(td)
   }
   body.append(tr)
  }
  if(!summary.recent.length){
   const tr=document.createElement('tr'),td=document.createElement('td');
-  td.colSpan=5;td.textContent='本数字一致データの蓄積待ち';tr.append(td);body.append(tr)
+  td.colSpan=6;td.textContent='本数字一致データの蓄積待ち';tr.append(td);body.append(tr)
  }
 }
 const globalState=D.global||null;
