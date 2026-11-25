@@ -13,6 +13,7 @@ on:
       - 'global_search.py'
       - 'main_search.py'
       - 'incremental_seed.py'
+      - 'data/analyzer_results.json'
       - 'test_main.py'
       - 'evaluate_forecasts.py'
       - 'test_global.py'
@@ -30,16 +31,18 @@ permissions:
 jobs:
   search:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Compile native seed scanner
         run: |
           g++ -O3 -std=c++17 -Wall -Wextra seed_scan.cpp -o seed_scan
           g++ -O3 -std=c++17 -Wall -Wextra global_scan.cpp -o global_scan
       - name: Validate Python and cross-check exact matches
         run: |
-          python -m compileall -q worker.py import_draws.py import_history.py analyze.py run_search.py global_search.py main_search.py evaluate_forecasts.py
+          python -m compileall -q worker.py import_draws.py import_history.py analyze.py run_search.py global_search.py main_search.py incremental_seed.py evaluate_forecasts.py
           python -m unittest -q test_worker.py test_native.py test_global.py test_main.py
       - name: Search and checkpoint in D1
         env:
