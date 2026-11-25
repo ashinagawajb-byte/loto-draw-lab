@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - 'dashboard.py'
+      - 'incremental_seed.py'
       - 'sync_draw_registrations.py'
       - 'test_draw_registrations.py'
       - 'evaluate_forecasts.py'
@@ -43,6 +44,8 @@ jobs:
         run: |
           python -m unittest -q test_draw_registrations.py
           python sync_draw_registrations.py
+      - name: Refresh public Analyzer result history for scoring
+        run: python incremental_seed.py --export
       - name: Build read-only dashboard from D1
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -57,6 +60,9 @@ jobs:
             curl --fail --location --silent --show-error --retry 3 --output site/index.html https://ashinagawajb-byte.github.io/loto-draw-lab/
             python -c 'from dashboard import attach_analyzer_result; attach_analyzer_result("site/index.html")'
           fi
+          mkdir -p site/predictions
+          cp predictions/loto6_*.json site/predictions/
+          python -c 'import json, pathlib; files=sorted(pathlib.Path("site/predictions").glob("loto6_*.json")); pathlib.Path("site/predictions/index.json").write_text(json.dumps([p.name for p in files]))'
           mkdir -p site/simulator
           cp simulator/index.html simulator/review.html simulator/manifest.webmanifest simulator/sw.js simulator/analyzer-result.js site/simulator/
           python simulator/make_icons.py site/simulator
