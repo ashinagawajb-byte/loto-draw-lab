@@ -63,7 +63,7 @@ def scan():
     def signature(v): return json.dumps([v[1],v[2]],separators=(',',':'))
     for (game,rid),v in newer.items():
         query('INSERT OR IGNORE INTO analyzer_round_scan(game,round,signature) VALUES(?,?,?)',[game,rid,signature(v)])
-    deadline=time.monotonic()+180
+    deadline=time.monotonic()+360
     def read_states():
         states=query('SELECT * FROM analyzer_round_scan ORDER BY cursor,game,round')
         for s in states:
@@ -73,7 +73,7 @@ def scan():
     while newer and time.monotonic()<deadline-20 and USAGE['read']<50000 and USAGE['written']<1500:
         pending=[s for s in read_states() if s['cursor']<SPACE]
         if not pending: break
-        start=pending[0]['cursor']; batch=min(8000000,SPACE-start)
+        start=pending[0]['cursor']; batch=min(12000000,SPACE-start)
         group=[s for s in pending if s['cursor']==start]
         with tempfile.TemporaryDirectory() as tmp:
             target=Path(tmp)/'targets.tsv'
