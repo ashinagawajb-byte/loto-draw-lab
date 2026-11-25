@@ -12,6 +12,7 @@ on:
       - 'global_scan.cpp'
       - 'global_search.py'
       - 'main_search.py'
+      - 'incremental_seed.py'
       - 'test_main.py'
       - 'evaluate_forecasts.py'
       - 'test_global.py'
@@ -25,11 +26,11 @@ concurrency:
   group: loto-seed-search
   cancel-in-progress: false
 permissions:
-  contents: read
+  contents: write
 jobs:
   search:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - name: Compile native seed scanner
@@ -53,3 +54,13 @@ jobs:
           D1_RUN_WRITE_BUDGET: '2000'
         run: |
           python run_search.py
+          python incremental_seed.py
+      - name: Preserve new prospective forecasts
+        run: |
+          git add predictions/
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Freeze next-round virtual seed research candidates'
+          git pull --rebase origin main
+          git push origin HEAD:main
