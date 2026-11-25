@@ -175,9 +175,9 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 <p id="stamp" class="muted lead"></p></header>
 <div class="controls"><button type="button" data-game="6" aria-pressed="true">ロト6</button><button type="button" data-game="7" aria-pressed="false">ロト7</button></div>
 <section class="grid" aria-label="進捗"><div class="panel"><div class="muted">登録開催回</div><div class="metric" id="rounds">—</div><div class="muted lead" id="registered-through"></div></div>
-<div class="panel"><div class="muted">探索済みシード</div><div class="metric" id="scanned">—</div></div>
+<div class="panel"><div class="muted">最新回の主研究探索済みシード</div><div class="metric" id="scanned">—</div></div>
 <div class="panel"><div class="muted">完全一致した開催回</div><div class="metric" id="finished">—</div></div>
-<div class="panel"><div class="muted">現在の探索範囲に対する進捗</div><div class="metric" id="percent">—</div></div></section>
+<div class="panel"><div class="muted">最新回の主研究進捗</div><div class="metric" id="percent">—</div></div></section>
 <section class="panel"><h2>Site Analyzer × DRAW LAB｜5口比較</h2>
 <p class="muted lead">両者の抽せん前に固定した5口を同じ開催回で照合します。Site予測が未取込の場合は未取得と明示し、推測の数字で代用しません。</p>
 <div id="site-comparison-status" class="muted lead">データ確認中</div>
@@ -220,7 +220,7 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 </div><p id="last-run" class="muted lead"></p>
 <p id="last-run-status" class="muted lead"></p>
 </section>
-<section class="panel"><h2>探索範囲の進捗</h2><div class="progress"><div id="bar" style="width:0%"></div></div><p class="muted" id="plan"></p></section>
+<section class="panel"><h2>探索範囲の進捗</h2><p class="muted lead">現在稼働中の主研究（選択中のゲームの最新登録回）を表示します。</p><div class="progress"><div id="bar" style="width:0%"></div></div><p class="muted" id="plan"></p><p class="muted lead" id="legacy-plan"></p></section>
 <section class="panel"><h2>シード番号から抽選数字を再現</h2>
 <p class="muted lead">上のロト6／ロト7を選択し、0〜4,294,967,295の整数シードを入力。クラウド探索と同じ仮想乱数アルゴリズムで計算します。</p>
 <form id="seed-form" class="seed-form"><label for="seed-input">シード</label><input id="seed-input" inputmode="numeric" type="text" placeholder="例：12345" autocomplete="off" required><button type="submit">数字へ変換</button></form>
@@ -351,14 +351,16 @@ function show(){
 document.querySelectorAll('[data-game]').forEach(b=>b.setAttribute('aria-pressed',Number(b.dataset.game)===game?'true':'false'));
 showMain();
 const s=D.summary.find(v=>Number(v.game)===game)||{};
-const scanned=Number(s.scanned||0),planned=Number(s.planned||0);
-const pct=planned?100*scanned/planned:0;
+const latestMain=(mainByGame[String(game)]?.recent||[])[0];
+const scanned=Number(latestMain?.cursor||0),planned=4294967296;
+const pct=100*scanned/planned;
 $('rounds').textContent=n(s.rounds);
 $('registered-through').textContent=s.latest_round?'最新登録：第'+s.latest_round+'回':'';
 $('scanned').textContent=n(scanned);
 $('finished').textContent=n(s.completed);$('percent').textContent=pct.toFixed(2)+'%';
 $('bar').style.width=Math.min(100,pct)+'%';
-$('plan').textContent=n(scanned)+' / '+n(planned)+' シード（現在設定されている探索範囲。未発見の場合は拡張）';
+$('plan').textContent=(latestMain?'第'+latestMain.round+'回：':'')+n(scanned)+' / '+n(planned)+' シード｜'+(scanned===planned?'探索完了':scanned>0?'探索中（保存済み進捗）':'探索開始待ち');
+$('legacy-plan').textContent='旧方式（停止・記録保持）：'+n(s.scanned||0)+' / '+n(s.planned||0)+' シード。現在は全回一括照合と追加回の主研究に移行済みです。';
 const rows=D.completed.filter(v=>Number(v.game)===game).sort((a,b)=>Number(a.round)-Number(b.round));
 const chosen=rows.slice(-150);
 renderDeltas(rows);
