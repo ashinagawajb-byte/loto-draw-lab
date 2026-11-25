@@ -127,7 +127,9 @@ def get_data():
         row["best"] = []
     for row in studies:
         row["summary"] = json.loads(row["summary"])
-    return {"summary": summary, "completed": completed, "active": active,
+    reports=sorted(Path(__file__).resolve().parent.glob("research/seed_distribution/*.json"),key=lambda p:json.loads(p.read_text())["generated_at"])
+    seed_distribution=json.loads(reports[-1].read_text()) if reports else None
+    return {"seed_distribution":seed_distribution,"summary": summary, "completed": completed, "active": active,
             "studies": studies, "runs": runs,
             "global": global_rows[0] if global_rows else None,
             "global_counts": global_counts,
@@ -191,6 +193,7 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 <p class="muted lead">既存探索を維持し、新規回は別カーソルで32ビット空間を探索。全探索完了後のみ次回候補を固定します。</p>
 <div id="incremental-seed-progress" class="muted lead">確認中</div>
 <p><a href="predictions/index.json">固定予測ファイル一覧</a></p></section>
+<section class="panel"><h2>追加研究｜セット球・シード分布と遷移</h2><p class="muted lead">固定予想に影響しない時系列検証。仮想PRNGの標本であり、同じ検証期間の反復は独立した予測実績ではありません。</p><div id="seed-research-status" class="muted lead"></div><div class="scroll"><table><thead><tr><th>方式</th><th>最大一致平均</th><th>包含平均</th><th>基準一致率</th><th>無作為との差</th></tr></thead><tbody id="seed-research-results"></tbody></table></div><p><a href="https://github.com/ashinagawajb-byte/loto-draw-lab/tree/main/research/seed_distribution">研究記録・分布詳細</a></p></section>
 <section class="panel"><h2>本数字のみの探索（主研究）</h2>
 <p class="muted lead">本数字一致を主指標として、ボーナス一致は内訳として別集計。基礎探索とAnalyzerから追加された開催回の探索結果を統合します。探索中の回は途中集計として表示します。</p>
 <div class="grid">
@@ -350,6 +353,7 @@ function renderDeltas(rows){
 function show(){
 document.querySelectorAll('[data-game]').forEach(b=>b.setAttribute('aria-pressed',Number(b.dataset.game)===game?'true':'false'));
 showMain();
+showSeedResearch();
 const s=D.summary.find(v=>Number(v.game)===game)||{};
 const latestMain=(mainByGame[String(game)]?.recent||[])[0];
 const scanned=Number(latestMain?.cursor||0),planned=4294967296;
@@ -453,6 +457,13 @@ const incremental=D.incremental||[];
 incrementalBox.textContent=incremental.length?incremental.map(r=>'ロト'+r.game+' 第'+r.round+'回：'+(100*r.cursor/4294967296).toFixed(3)+'%（本数字一致 '+r.count+'件）').join(' ／ '):'追加回の探索準備中';
 const mainState=D.main_progress||null;
 const mainByGame=D.main_counts||{};
+function showSeedResearch(){
+ const report=D.seed_distribution, box=$('seed-research-status'), body=$('seed-research-results');body.replaceChildren();
+ if(!report){box.textContent='初回研究結果の保存待ち';return;}
+ const study=report['loto'+game],names={set_density:'セット球別密度',transition:'遷移',cycle:'周期',bits:'ビット',combined:'統合',mean_median:'平均・中央値',uniform:'無作為'};
+ box.textContent='標本 '+n(report.sampled_seeds)+' シード｜第'+study.holdout_from+'〜'+study.holdout_through+'回｜セット球情報：'+(game===6?'第'+report.set_labels_through+'回まで':'未収録')+'｜基準：'+(game===6?'本数字3個以上':'本数字4個以上')+'（等級そのものではない）';
+ for(const [m,v] of Object.entries(study.models)){const tr=document.createElement('tr');for(const x of [names[m]||m,v.mean_max_hits.toFixed(3),v.mean_coverage.toFixed(3),(100*v.threshold_rate).toFixed(2)+'%',(100*v.paired_delta_vs_uniform).toFixed(2)+'pt']){const td=document.createElement('td');td.textContent=x;tr.append(td)}body.append(tr)}
+}
 function showMain(){
  const summary=mainByGame[String(game)]||{matched_rounds:0,matching_seeds:0,bonus_matching_seeds:0,recent:[]};
  const latest=summary.recent[0],cursor=latest?Number(latest.cursor):0;
