@@ -77,6 +77,11 @@ def get_data():
         if 'no such table' not in str(exc).lower():raise
         main_state=None
         main_counts={}
+    try:
+        incremental=query("SELECT round,cursor,count,bonus_count,min_seed,sum_seed FROM incremental_seed_progress ORDER BY round DESC")
+    except RuntimeError as exc:
+        if 'no such table' not in str(exc).lower():raise
+        incremental=[]
     active = query("""
       SELECT game, round, scanned, seed_limit, best
       FROM jobs WHERE scanned > 0 AND scanned < seed_limit
@@ -109,7 +114,7 @@ def get_data():
             "global": global_rows[0] if global_rows else None,
             "global_counts": global_counts,
             "main_progress": main_state, "main_counts": main_counts,
-            "forecast_scores": score_predictions(),
+            "incremental": incremental, "forecast_scores": score_predictions(),
             "site_comparison": compare(), "note": "シード値は仮想PRNGの値であり、実機の状態ではありません。過去結果に合わせた値から予測力は導けません。"}
 
 HTML = r"""<!doctype html>
@@ -164,6 +169,10 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 <p class="muted lead">抽せん前にGitHubへ保存した候補だけを対象に、公式結果CSVが登録された後に採点します。数字6個の一致数が主指標。ボーナスは参考値です。</p>
 <div id="forecast-scores" class="muted lead">照合待ち</div>
 </section>
+<section class="panel"><h2>Analyzer連携・追加回の探索（ロト6）</h2>
+<p class="muted lead">既存探索を維持し、新規回は別カーソルで32ビット空間を探索。全探索完了後のみ次回候補を固定します。</p>
+<div id="incremental-seed-progress" class="muted lead">確認中</div>
+<p><a href="predictions/index.json">固定予測ファイル一覧</a></p></section>
 <section class="panel"><h2>本数字のみの探索（主研究）</h2>
 <p class="muted lead">本数字一致を主指標として、ボーナス一致は内訳として別集計。旧完全一致探索は保持しています。主探索と完全一致探索のシード走査率は別々です。</p>
 <div class="grid">
@@ -419,6 +428,9 @@ if(!forecastScores.length){
  disclaimer.textContent='公平乱数で予想した6数字と実際の本数字6個の平均一致数は36/43≈0.837個。少数回の差では予測力を判断できません。';
  forecastBox.append(disclaimer);
 }
+const incrementalBox=$('incremental-seed-progress');
+const incremental=D.incremental||[];
+incrementalBox.textContent=incremental.length?incremental.map(r=>'第'+r.round+'回：'+(100*r.cursor/4294967296).toFixed(3)+'%（本数字一致 '+r.count+'件）').join(' ／ '):'追加回の探索準備中';
 const mainState=D.main_progress||null;
 const mainByGame=D.main_counts||{};
 const totalMain=mainState?Number(mainState.cursor):0;
