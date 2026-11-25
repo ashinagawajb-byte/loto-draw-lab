@@ -1,0 +1,75 @@
+{
+  "lottery": "LOTO6",
+  "round": 2158,
+  "draw_date_jst": "2026-11-26",
+  "trained_through": 2157,
+  "created_at": "2026-11-25T23:52:30.948360+09:00",
+  "model": "incremental-seed-v1",
+  "candidates": [
+    {
+      "method": "last_mean",
+      "seed": 2133749204,
+      "numbers": [
+        8,
+        14,
+        20,
+        28,
+        35,
+        40
+      ],
+      "bonus": 27
+    },
+    {
+      "method": "median_delta",
+      "seed": 2133591211,
+      "numbers": [
+        1,
+        7,
+        10,
+        21,
+        30,
+        41
+      ],
+      "bonus": 33
+    },
+    {
+      "method": "recent_median",
+      "seed": 2159940357,
+      "numbers": [
+        13,
+        22,
+        29,
+        33,
+        35,
+        37
+      ],
+      "bonus": 4
+    },
+    {
+      "method": "mean_8",
+      "seed": 2157526033,
+      "numbers": [
+        2,
+        7,
+        10,
+        28,
+        41,
+        43
+      ],
+      "bonus": 40
+    },
+    {
+      "method": "hash_control",
+      "seed": 1992129205,
+      "numbers": [
+        5,
+        8,
+        20,
+        31,
+        36,
+        37
+      ],
+      "bonus": 10
+    }
+  ]
+}
