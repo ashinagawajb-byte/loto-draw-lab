@@ -78,7 +78,7 @@ def get_data():
         main_state=None
         main_counts={}
     try:
-        incremental=query("SELECT round,cursor,count,bonus_count,min_seed,sum_seed FROM incremental_seed_progress ORDER BY round DESC")
+        incremental=query("SELECT game,round,cursor,count,bonus_count,min_seed,sum_seed FROM analyzer_round_scan ORDER BY game,round DESC")
     except RuntimeError as exc:
         if 'no such table' not in str(exc).lower():raise
         incremental=[]
@@ -169,7 +169,7 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 <p class="muted lead">抽せん前にGitHubへ保存した候補だけを対象に、公式結果CSVが登録された後に採点します。数字6個の一致数が主指標。ボーナスは参考値です。</p>
 <div id="forecast-scores" class="muted lead">照合待ち</div>
 </section>
-<section class="panel"><h2>Analyzer連携・追加回の探索（ロト6）</h2>
+<section class="panel"><h2>Analyzer連携・追加回の探索</h2>
 <p class="muted lead">既存探索を維持し、新規回は別カーソルで32ビット空間を探索。全探索完了後のみ次回候補を固定します。</p>
 <div id="incremental-seed-progress" class="muted lead">確認中</div>
 <p><a href="predictions/index.json">固定予測ファイル一覧</a></p></section>
@@ -430,7 +430,7 @@ if(!forecastScores.length){
 }
 const incrementalBox=$('incremental-seed-progress');
 const incremental=D.incremental||[];
-incrementalBox.textContent=incremental.length?incremental.map(r=>'第'+r.round+'回：'+(100*r.cursor/4294967296).toFixed(3)+'%（本数字一致 '+r.count+'件）').join(' ／ '):'追加回の探索準備中';
+incrementalBox.textContent=incremental.length?incremental.map(r=>'ロト'+r.game+' 第'+r.round+'回：'+(100*r.cursor/4294967296).toFixed(3)+'%（本数字一致 '+r.count+'件）').join(' ／ '):'追加回の探索準備中';
 const mainState=D.main_progress||null;
 const mainByGame=D.main_counts||{};
 const totalMain=mainState?Number(mainState.cursor):0;
