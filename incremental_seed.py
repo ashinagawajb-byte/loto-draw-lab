@@ -5,33 +5,25 @@ import csv, json, hashlib, io, os, subprocess, tempfile, time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from statistics import median
-from urllib.request import urlopen
 from worker import query, shuffle, SPACE, USAGE
 from global_search import targets
 from sync_draw_registrations import register
 ROOT=Path(__file__).resolve().parent
-URL='https://loto6-data-proxy.a-shinagawa-jb.workers.dev/loto6.csv'
 JST=timezone(timedelta(hours=9))
 
 def read_feed():
-    with urlopen(URL,timeout=20) as response:
-        if response.geturl()!=URL: raise ValueError('Unexpected feed redirect')
-        blob=response.read(3000001)
-    if len(blob)>3000000: raise ValueError('Feed too large')
-    try: text=blob.decode('utf-8-sig')
-    except UnicodeDecodeError: text=blob.decode('cp932')
-    reader=csv.DictReader(io.StringIO(text))
-    keys=['開催回','日付',*[f'第{i}数字' for i in range(1,7)],'BONUS数字'] if '開催回' in reader.fieldnames else ['回号','抽選日',*[f'本数字{i}' for i in range(1,7)],'ボーナス数字1']
+    # This file is written by the authorized Analyzer synchronization task.
+    # No access token or personal account information enters the repository.
+    data=json.loads((ROOT/'data/analyzer_results.json').read_text(encoding='utf-8'))
     rows={}
-    for row in reader:
-        rid=int(row[keys[0]])
-        date=datetime.strptime(row[keys[1]].replace('-','/'),'%Y/%m/%d').date()
-        nums=[int(row[k]) for k in keys[2:]]
-        if rid<1 or date>datetime.now(JST).date() or len(set(nums))!=7 or not all(1<=n<=43 for n in nums): raise ValueError('Invalid Analyzer result')
+    for row in data['loto6']:
+        rid=int(row['round']); date=datetime.strptime(row['date'],'%Y-%m-%d').date()
+        nums=list(map(int,row['main']+row['bonus']))
+        if rid<1 or date>datetime.now(JST).date() or len(nums)!=7 or len(set(nums))!=7 or not all(1<=n<=43 for n in nums): raise ValueError('Invalid Analyzer result')
         value=(date,sorted(nums[:6]),[nums[6]])
         if rid in rows and rows[rid]!=value: raise ValueError('Conflicting Analyzer result')
         rows[rid]=value
-    if not rows or set(rows)!=set(range(min(rows),max(rows)+1)): raise ValueError('Missing rounds in feed')
+    if not rows or set(rows)!=set(range(min(rows),max(rows)+1)): raise ValueError('Missing rounds in Analyzer history')
     return rows
 
 def baseline():
