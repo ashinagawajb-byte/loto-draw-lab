@@ -1,0 +1,45 @@
+name: Seed distribution research
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'seed_distribution_research.py'
+      - 'research/set_labels_loto6.json'
+      - '.github/workflows/seed-distribution.yml'
+  schedule:
+    - cron: '55 * * * *'
+  workflow_dispatch:
+concurrency:
+  group: seed-distribution-research
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Build and research
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra global_scan.cpp -o global_scan
+          python -m py_compile seed_distribution_research.py
+          python seed_distribution_research.py
+      - name: Preserve reports without touching fixed predictions
+        run: |
+          git add research/seed_distribution/
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Store independent seed-distribution research results'
+          git pull --rebase origin main
+          git push origin HEAD:main
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sampled-main-seed-matches
+          path: seed_research_matches.tsv.gz
+          if-no-files-found: ignore
+          retention-days: 30
