@@ -108,10 +108,10 @@ int main(int argc,char** argv){
       (six?main6:main7)[key.main].push_back({cols[1],key.bonus});
       ++entries;
     }
-    if(entries==0||idx6.empty()||idx7.empty())throw std::invalid_argument("missing target games");
+    if(entries==0)throw std::invalid_argument("missing targets");
     for(uint64_t offset=0;offset<count;++offset){
       const uint32_t seed=static_cast<uint32_t>(start+offset);
-      const Key k6=draw(43,6,1,seed),k7=draw(37,7,2,seed);
+      const Key k6=idx6.empty()?Key{0,0}:draw(43,6,1,seed),k7=idx7.empty()?Key{0,0}:draw(37,7,2,seed);
       if(main_only){
         const auto a=main6.find(k6.main);
         if(a!=main6.end())for(const auto& target:a->second)
