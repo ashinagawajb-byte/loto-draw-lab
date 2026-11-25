@@ -87,3 +87,9 @@ g++ -O3 -std=c++17 -Wall -Wextra seed_scan.cpp -o seed_scan
 g++ -O3 -std=c++17 -Wall -Wextra global_scan.cpp -o global_scan
 python -m unittest -q test_worker.py test_native.py test_global.py test_main.py
 ```
+
+## Analyzer-linked incremental research (2026-11-25)
+
+The hourly DRAW LAB–Analyzer synchronization task reads the owner-private Analyzer's saved published-result history and appends only round, date, main and bonus values to `data/analyzer_results.json`. It uses the Site's service access only on the Site origin, and no credentials or private ticket history enter this repository. Baseline CSVs are intentionally kept stable; the dashboard builds a merged copy for scoring. New result snapshots trigger the existing seed workflow.
+
+`incremental_seed.py` gives each additional draw an independent 32-bit main-only cursor in D1 (`analyzer_round_scan`). Full bonus matches are recorded idempotently in the existing exact-match table. The completed baseline main-only scan is retained and new draws do not reset it. Each game can produce a frozen next-round five-candidate research record only when all its baseline and added-round main-number searches are complete and before the next draw's normal cutoff. Four descriptive seed-statistic methods and one hash control are used; this is not evidence of predictive skill. Each integer seed is converted with the same virtual shuffle. Existing predictions are never replaced. The synchronization task imports new research JSON into independent Analyzer comparison storage for display and subsequent outcome comparison. A late completion skips the expired forecast rather than backdating it. Scheduled execution may be delayed or paused by GitHub/D1 service limits.
