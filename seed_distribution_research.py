@@ -20,7 +20,8 @@ def scan(rows,phase):
         path=Path(tmp)/'targets.tsv'
         path.write_text(''.join(f"{g}\t{r}\t{','.join(map(str,v[1]))}\t{','.join(map(str,v[2]))}\n" for (g,r),v in sorted(rows.items())))
         for high in range(256):
-            start=high*WIDTH+phase*STRIDE
+            offset=int.from_bytes(hashlib.sha256(f'bin-{high}'.encode()).digest()[:2],'big')%64
+            start=high*WIDTH+((phase+offset)%64)*STRIDE
             result=subprocess.run([str(ROOT/'global_scan'),str(start),str(STRIDE),str(path),'main'],capture_output=True,text=True,check=True,timeout=45)
             for line in result.stdout.splitlines():
                 g,r,s,b=map(int,line.split('\t'))
@@ -54,7 +55,7 @@ def choose(game,round_id,history,sets,phase):
     # Compare nearest prior distributions to the latest one; use their observed successors only.
     last=hist(base[-1]) if base else [1/256]*256
     pairs=[]
-    for (r,a),(nr,b) in zip(history[-129:-1],history[-128:]):
+    for (r,a),(nr,b) in zip(history[-129:-1],history[-129:][1:]):
         if nr==r+1 and a and b:
             dist=sum(abs(x-y) for x,y in zip(last,hist(a)))
             pairs.append((dist,r,hist(b)))
@@ -71,7 +72,7 @@ def choose(game,round_id,history,sets,phase):
         chosen=[]; seen=set()
         while len(chosen)<5:
             if method=='bits':seed=sum((rng.random()<p)<<i for i,p in enumerate(bits))
-            elif method=='mean_median' and len(chosen)<len(baseline):seed=(baseline[len(chosen)]+len(seen)*0)%SPACE
+            elif method=='mean_median' and len(chosen)<len(baseline):seed=(baseline[len(chosen)])%SPACE
             elif method in ('set_density','transition','cycle','combined'):
                 p={'set_density':set_dist,'transition':trans,'cycle':cyc,'combined':combined}[method]
                 seed=rng.choices(range(256),p,k=1)[0]*WIDTH+rng.randrange(WIDTH)
