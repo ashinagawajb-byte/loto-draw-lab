@@ -234,7 +234,7 @@ a{color:#a7d4ff}svg text{font-family:inherit}
 </section>
 <section class="panel"><h2>分析結果</h2><div id="analysis" class="muted"></div></section>
 <section class="panel"><h2>完全一致した開催回とシード</h2><div class="scroll"><table><thead><tr><th>開催回</th><th>完全一致シード</th><th>本数字一致</th><th>ボーナス一致</th><th>発見数</th></tr></thead><tbody id="candidates"></tbody></table></div></section>
-<section class="panel"><h2>処理中の開催回</h2><div id="active" class="muted"></div></section>
+<section class="panel"><h2>旧方式の未完了開催回（履歴）</h2><div id="active" class="muted"></div></section>
 <footer>このページは自動実行時点の静的な集計結果です。リアルタイム通信は行いません。APIトークン・認証情報は含まれていません。
 各回のシード探索は過去結果に合わせた後付けの探索であり、実際の抽選機のシードを復元したものではありません。</footer>
 </main><script id="payload" type="application/json">__DATA__</script>
@@ -495,7 +495,7 @@ $('last-rate').textContent=latest&&Number(latest.duration_seconds)>0?n(Math.roun
 $('avg-scanned').textContent=runs.length?n(Math.round(runs.reduce((a,r)=>a+Number(r.scanned),0)/runs.length)):'—';
 $('last-run').textContent=latest?'最終実行記録（UTC）：'+latest.completed_at+'｜完全一致の新規発見：'+n(latest.found)+'件':'探索実行記録の収集開始前です。';
 const age=latest?(Date.parse(D.generated_at)-Date.parse(latest.completed_at+'Z'))/3600000:null;
-$('last-run-status').textContent=age!=null&&age>3?'注意：最終記録から3時間以上経過しています。GitHub Actionsを確認してください。':'この値は公開画面生成時点の記録です。リアルタイムの監視ではありません。';
+$('last-run-status').textContent='旧方式は停止済みです。過去の探索記録を保持しています。現在の進捗は主研究・全開催回一括照合で確認してください。';
 $('stamp').textContent='データ取得時刻（UTC）: '+D.generated_at;
 show();
 </script></body></html>"""
